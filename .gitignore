@@ -1,0 +1,17 @@
+_model_inps/
+_model_inps_subtable/
+_models/
+data/
+GS/
+meta/
+plots/
+QC_plots/
+RMSEs/
+stations_upstream_downstream/
+
+
+__pycache__/
+.spyproject/
+.pylint.d/
+
+__notes.txt
