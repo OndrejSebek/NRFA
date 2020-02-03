@@ -9,7 +9,7 @@ from math import sqrt
 
 import os
 
-
+import NRFA_v3 as nrfa
 
 
 def fetch_NRFA_local_2019(station_id):
@@ -314,9 +314,9 @@ def model_fit_inp_tables(station, n_inps):
             st = i
             t = 0
     
-        st_map.loc[st, int(t)] = 1
+        st_map.loc[st, int(t)] = model_inps.loc[model_inps['colname']==i, 'feature_importance']
    
-    st_map.loc[station, 0] = 2
+    st_map.loc[station, 0] = -1
     
     st_map.to_csv('_model_inps_subtable/'+station+'.csv', index=True)
 
@@ -334,11 +334,47 @@ for st in os.listdir('plots'):
 
 
 
+''' _____________ total days for x stations ~ NRFA site _________________'''
+
+def xstations_ndata_nrfa():
+    n = []
+    for i in os.listdir('_model_inps'):
+        st_id = i[:-4]
+    
+        x = nrfa.NRFA(st_id)
+        x.set_ids_radius(20000, 20000, 20000)
+        
+        ns = [st_id]
+        for j in np.arange(.1, 1.1, .1):
+            x.merge_inps('MO', j)
+            
+            x2 = pd.read_csv('data/level2/'+st_id+'/'+st_id+'.csv')
+            # ns.append([len(x.nearby_NRFA)+len(x.nearby_MORAIN), x2.shape[0]])
+            ns.append(x2.shape[0])
+        
+        n.append(ns)
+    
+    m = n.copy()
+    
+    n = pd.DataFrame(n)
+    n.set_index(0, inplace=True)
+    n.columns = np.arange(.1, n.shape[1]*.1, .1)
+    
+    for ind in n.index:
+        n.loc[ind] /= n.loc[ind, n.columns[-1]]
+        
+    
+    n.to_csv('meta/nst_xdt.csv')
+    pd.DataFrame(m).to_csv('meta/mmmmm_nst_xdt.csv')
+
+    fig = plt.figure(figsize=(10, 5), dpi=300)
+    plt.plot(n.T, linestyle='--')
+    plt.savefig('___a.jpg')
+    plt.close()
 
 
 
-
-
+xstations_ndata_nrfa()
 
 
 
