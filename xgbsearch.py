@@ -25,7 +25,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
         # ___________________________ level1 ____________________________
         
         # for inp_opt in inp_opts:
-        for range_radius in np.arange(10, range_rad_m, 10):
+        for range_radius in np.arange(range_rad_m[0], range_rad_m[1], range_rad_m[2]):
             for range_opt in range_opts:
                 x.set_ids_radius(range_radius, range_radius, range_radius)
             
@@ -65,7 +65,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                     
                     # fit xgb for feature imps subsetting    
                     #
-                    x.set_scale_inps(-1)  
+                    x.scale_split_traintest()  
                     x.xgb_model_fit()
     
     
@@ -106,7 +106,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                         #
                         for run in range(runs):
                             # x.set_scale_inps(-1)  
-                            x.set_scale_inps_kf(runs, run)
+                            x.scale_split_kfolds(run, runs)
                             
                             x.keras_model(lr)
                             x.keras_fit(ep)
@@ -157,11 +157,11 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
 
 # station_ids, range_opts, range_rad_m, xgb_sub_n, runs
 
-xgbsearch(['23011', '28015', '28022'],
+xgbsearch(['49006'],
           ['radius', 'updwn'],
-          51,
+          [20, 51, 10],
           ['MO', 'NRFA_only'],
-          [10, 20, 30],
+          [20, 30, 40],
           5,
           lr=0.0001,
           ep=10000)

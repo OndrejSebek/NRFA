@@ -29,9 +29,66 @@ class NRFA:
             NRFA station ID
 
         """
-        self.data_loaded = 0
+        # class var declarations
         self.station_id = str(station_id)
+        self.station_ids = []
+
+        self.nearby_NRFA = []
+        self.nearby_NHA = []
+        self.nearby_EA = []
+        self.nearby_MORAIN = []
         
+        self.east = 0
+        self.north = 0
+        
+        self.data_loaded = 0
+        
+        self.EA_RG_meta = None
+        
+        self.inp = []
+        self.col_labels = []
+        self.exp = []
+        
+        self.x_train = []
+        self.y_train = []
+        self.x_test = []
+        self.y_test = []
+        
+        self.x_cal = []
+        self.x_val = []
+        self.y_cal = []
+        self.y_val = []
+        
+        self.y_mean = None
+        
+        self.kf = None
+        self.kfold_indices_cal = []
+        self.kfold_indices_val = []
+        
+        self.model = None
+        self.history = None
+        
+        self.cb_es = None
+        self.cb_rlr = None
+        
+        self.cal_dataset = None
+        self.val_dataset = None
+        
+        self.RMSE = None
+        self.epoch = 0
+        
+        self.y_mod_cal = None
+        self.rmse_cal = None
+        self.nrmse_cal = None
+        
+        self.y_mod_val = None
+        self.rmse_val = None
+        self.nrmse_val = None
+        
+        self.xgb_reg = None        
+        self.xgb_feature_imps = []
+        self.t_x_cats = []
+    
         # check if base station available 
         self.root = 'https://nrfaapps.ceh.ac.uk/nrfa/ws/'
         web_service_stations = 'station-ids?format=json-object'
@@ -137,26 +194,26 @@ class NRFA:
         print('identifying EA gauges within', thr_EA/1000, 'km radius')
         
         # EA rainfall gauges
-        self.meta = pd.read_csv('meta/COSMOS_meta_updated.csv')
-        self.meta = self.meta[['API_ID',
+        self.EA_RG_meta = pd.read_csv('meta/COSMOS_meta_updated.csv')
+        self.EA_RG_meta = self.EA_RG_meta[['API_ID',
                                'NHA_ID',
                                'easting',
                                'northing']].dropna().drop_duplicates()
         
-        self.nearby_gauges_NHA = []
-        self.nearby_gauges_EA = []
-        for i in self.meta.index:
-            east = self.meta['easting'].loc[i]
-            north = self.meta['northing'].loc[i]
+        self.nearby_NHA = []
+        self.nearby_EA = []
+        for i in self.EA_RG_meta.index:
+            east = self.EA_RG_meta['easting'].loc[i]
+            north = self.EA_RG_meta['northing'].loc[i]
 
             dist = np.sqrt( (east-self.east)*(east-self.east) +
                            (north-self.north)*(north-self.north) )
             if dist < thr_EA:
-                self.nearby_gauges_NHA.append(self.meta['NHA_ID'].loc[i])
-                self.nearby_gauges_EA.append(self.meta['API_ID'].loc[i])
+                self.nearby_NHA.append(self.EA_RG_meta['NHA_ID'].loc[i])
+                self.nearby_EA.append(self.EA_RG_meta['API_ID'].loc[i])
             
-        print('gauges found:', self.nearby_gauges_NHA, '\n')
-        #print('EA ids:', self.nearby_gauges_EA, '\n')
+        print('gauges found:', self.nearby_NHA, '\n')
+        #print('EA ids:', self.nearby_EA, '\n')
         
         # MORAIN
         print('identifying MORAIN gauges within', thr_MO/1000, 'km radius')
@@ -205,7 +262,7 @@ class NRFA:
         Parameters
         ----------
         empty_NHA : int, optional
-            1 to set nearby_gauges_NHA to empty list. The default is 0.
+            1 to set nearby_NHA to empty list. The default is 0.
 
         """
         NRFA_ids = []
@@ -216,7 +273,7 @@ class NRFA:
         self.nearby_NRFA = NRFA_ids
         
         if empty_NHA:
-            self.nearby_gauges_NHA = []
+            self.nearby_NHA = []
         
         
     def fetch_NRFA(self):  
@@ -252,9 +309,9 @@ class NRFA:
         """
         gf_df = pd.DataFrame()
 
-        if len(self.nearby_gauges_NHA) != 0:
+        if len(self.nearby_NHA) != 0:
             # load gauges df
-            for gauge in self.nearby_gauges_NHA:
+            for gauge in self.nearby_NHA:
                 gf = pd.read_csv('../EA_data/EA_rainfall_30min_agg/'+gauge+'.csv',
                                  skiprows=5, header=None)
                 gf.columns=['date', gauge, 'note']
@@ -335,7 +392,8 @@ class NRFA:
      
     def merge_inps(self, src='MO', ratio=.9): 
         """
-        Merge NRFA station & EA gauge data into inps df (doesn't set inp/exp)
+        Merge NRFA station & EA gauge data into inps df (doesn't set inp/exp).
+        Exports level2 data.
 
         Parameters
         ----------
@@ -384,8 +442,8 @@ class NRFA:
                 if i in self.nearby_NRFA:
                     self.nearby_NRFA.remove(i)
                     print(i, 'removed (NRFA)')
-                elif (src == 'EA') and (i in self.nearby_gauges_NHA):
-                    self.nearby_gauges_NHA.remove(i) 
+                elif (src == 'EA') and (i in self.nearby_NHA):
+                    self.nearby_NHA.remove(i) 
                     print(i, 'removed (NHA)')
                 elif (src == 'MO') and (i in self.nearby_MORAIN):
                     self.nearby_MORAIN.remove(i)
@@ -417,6 +475,7 @@ class NRFA:
     def timelag_inps(self, t_x, lag_opt, src='MO'):
         """
         Load data, timelag all inps up to t-(*t_x) and set inp/exp.
+        Exports level2 data.
 
         Parameters
         ----------
@@ -439,20 +498,20 @@ class NRFA:
             if src == 'MO':
                 inps_to_lag = self.nearby_MORAIN.copy()
             else:
-                inps_to_lag = self.nearby_gauges_NHA.copy()
+                inps_to_lag = self.nearby_NHA.copy()
         elif lag_opt == 'EA&station':
             if src == 'MO':
                 inps_to_lag = self.nearby_MORAIN.copy()
                 inps_to_lag.append(self.station_id)
             else:
-                inps_to_lag = self.nearby_gauges_NHA.copy()
+                inps_to_lag = self.nearby_NHA.copy()
                 inps_to_lag.append(self.station_id)
         elif lag_opt == 'all':
             if src == 'MO':
                 inps_to_lag = self.nearby_MORAIN.copy()
                 inps_to_lag.extend(self.nearby_NRFA)
             elif src == 'EA':
-                inps_to_lag = self.nearby_gauges_NHA.copy()
+                inps_to_lag = self.nearby_NHA.copy()
                 inps_to_lag.extend(self.nearby_NRFA)
             else:
                 inps_to_lag = self.nearby_NRFA.copy()
@@ -563,7 +622,7 @@ class NRFA:
     def merge_timelag_inps_subset(self, n_t_xs, src='MO'):
         """
         Timelag *n_t_xs most important inps based on [XGB GAIN], overwrites 
-        .._merged_inp & .._merged_out files.
+        .._merged_inp & .._merged_out files. Exports level2 data.
 
         Parameters
         ----------
@@ -701,13 +760,18 @@ class NRFA:
         self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp_merged.csv', header=True)
 
 
-    def set_scale_inps(self, scaler_id=-1):
+    def scale_split_traintest(self, n_traintest_split=400, ratio_calval_split=.25, scaler_id=-1):
         """
         Load data if not done while timelagging, standardise inputs, set 
         inp/exp and separate cal/val subsets.
 
         Parameters
         ----------
+        n_traintest_split : int, optional
+            train/test split (last *n_traintest_split data points -> test).
+            The default is 400.
+        ratio_calval_split : float, optional
+            cal/val split ratio (shuffled). The default is .25.
         scaler_id : int, optional
             ID for exported scaler, -1 to disable. The default is -1.
 
@@ -718,14 +782,12 @@ class NRFA:
     
             self.exp = data[self.station_id]
             self.inp = data.drop(self.station_id, axis=1)    
-           
             
         # standardise inps to ~ 0 mean, 1 std
         scaler_inp = preprocessing.StandardScaler()
-        inp = scaler_inp.fit_transform(self.inp)
-        exp = self.exp.copy()
+        x = scaler_inp.fit_transform(self.inp)
+        y = self.exp.copy()
             
-                
         # export scaler
         if scaler_id != -1:
             if not os.path.exists('_models/'+self.station_id):
@@ -733,16 +795,23 @@ class NRFA:
                 
             joblib.dump(scaler_inp, '_models/'+self.station_id+'/scaler'+str(scaler_id)+'.pkl')
 
-        # set cal/val inp/exp
-        self.x_cal, self.x_val, self.y_cal, self.y_val = train_test_split(inp, exp, 
-                                                                          test_size=0.3, 
+        # train test splits
+        self.x_train = x[:-n_traintest_split]
+        self.y_train = y.iloc[:-n_traintest_split]
+        
+        self.x_test = x[-n_traintest_split:]
+        self.y_test = y.iloc[-n_traintest_split:]
+        
+        # cal/val splits
+        self.x_cal, self.x_val, self.y_cal, self.y_val = train_test_split(self.x_train, self.y_train, 
+                                                                          test_size=ratio_calval_split, 
                                                                           random_state=None,
                                                                           shuffle=True)
         
-        self.y_mean = exp.mean()
+        self.y_mean = y.mean()
         
         
-    def set_scale_inps_kf(self, n_folds, cur_fold, scaler_id=-1):
+    def scale_split_kfolds(self, cur_fold, n_folds, scaler_id=-1):
         """
         K fold crossval + standardisation.
         
@@ -1060,13 +1129,13 @@ class NRFA:
         """
         api_ids = pd.read_csv('meta/EA_API_meta.csv')
         
-        self.nearby_gauges_API = []
-        for i in self.nearby_gauges_EA:
+        self.nearby_NHA = []
+        for i in self.nearby_EA:
             if i in api_ids['id'].values:
-                self.nearby_gauges_API.append(i)
+                self.nearby_NHA.append(i)
         
-        print('nearby EA gauges:', self.nearby_gauges_EA, '\n')
-        print('present on API:', self.nearby_gauges_API, '\n')
+        print('nearby EA gauges:', self.nearby_EA, '\n')
+        print('present on API (NHA ID):', self.nearby_NHA, '\n')
 
 
     def NSE(self):

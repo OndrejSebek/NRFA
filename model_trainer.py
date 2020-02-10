@@ -2,6 +2,7 @@ import NRFA_v3 as nrfa
 import kernets as knets
 import QC_utils as qc_u
 
+
 IDS = [34018, 30002, 28044, 48001, 40017, 46005, 54017, 28015, 39056, 46014,
        49006, 39125, 34010, 33013, 76017, 54057, 39001, 54110, 47019, 28022, 
        23011, 75017, 29002, 34012, 39026, 32008, 45001, 39065, 52010, 38003, 
@@ -16,12 +17,12 @@ IDS = [34018, 30002, 28044, 48001, 40017, 46005, 54017, 28015, 39056, 46014,
 '''
 
 
-''' _______________________  STATION ID  _______________________ '''
+''' __________________________  STATION ID  ______________________________ '''
 for st_id in IDS:
     
     # init stations
     x = nrfa.NRFA(st_id)
-    x.set_ids_radius(20000, 20000, 20000)
+    x.set_ids_radius(20, 20, 20)
     
     # adjust to missing gdf-live data
     x.update_ids_local(empty_NHA=0)
@@ -30,7 +31,7 @@ for st_id in IDS:
         x.nearby_gauges_NHA.remove('LALDERR')
             
 
-    ''' ______________ FILES ______________ '''
+    ''' ___________________________ files _______________________________ '''
     
     # level1
     qc_u.fetch_NRFA_local_2019(st_id)
@@ -38,18 +39,18 @@ for st_id in IDS:
 
     x.fetch_agg_EA()
     x.fetch_MO()
-    
 
     ratio = .9
 
 
-    ''' ______________ xgb ______________ '''
+    ''' ____________________________ xgb ________________________________ '''
+    
     # do scaler separately (i=99)
     
     # level2
     x.merge_inps('NRFA_only', ratio)
-    x.timelag_inps('MO', 3, 'all')
-    x.set_scale_inps(99) 
+    x.timelag_inps(5, 'all', 'MO')
+    x.scale_split_traintest() 
 
     x.xgb_model_fit()
     x.xgb_plots()
@@ -57,16 +58,15 @@ for st_id in IDS:
     x.xgb_reg.save_model('_models/'+str(st_id)+'/xgb.model')
 
 
-    ''' ______________ keras ______________ '''
-    
+    ''' __________________________ keras ________________________________ '''
     
     # subset based on XGB feature importance (gain)
-    x.timelag_inps_subset(20)
+    x.merge_timelag_inps_subset(30)
 
     big_RMSE = []
     for i in range(20):
         # cal/val split
-        x.set_scale_inps(i) 
+        x.scale_split_traintest(scaler_id=i) 
     
         x.keras_model(.0001)
         x.keras_fit(10000)
@@ -76,7 +76,6 @@ for st_id in IDS:
         
         print(i, '/19: ', x.RMSE.values)
         
-           
     y = nrfa.pd.DataFrame(nrfa.np.concatenate(big_RMSE)).drop_duplicates()
     y.columns = ['cal', 'val', 'epoch', 'rows', 'cols']
     y.to_csv('RMSEs/keras_RMSE_'+str(st_id)+'.csv')
@@ -84,8 +83,7 @@ for st_id in IDS:
     x.keras_plots()
 
 
-
-''' ____________________________ Kernets _______________________________ '''
+''' ____________________________ KERNETS ________________________________ '''
 
 for st_id in IDS:
     x = knets.Kernets(st_id, 10)
@@ -93,7 +91,7 @@ for st_id in IDS:
     x.get_pred(bounds=0, conf=.95)
     x.save_pred()
     
-    ''' preqc/qc files'''
+    # preqc/qc files
     qc_u.fetch_preqc_qc(st_id)
     mrgd = qc_u.merge_preqc_qc_nn(st_id)
     

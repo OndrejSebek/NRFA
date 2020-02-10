@@ -2,15 +2,17 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
+
 dt = pd.read_csv('GS/xgbsearch.csv', index_col=1).drop('Unnamed: 0', axis=1)
 
+''' ___________________________ PLOTS ___________________________________ '''
 
-# ____________________________________________________________________
-
-# plot fit stats for xgbsearched par combinations 
-#   for each station separately
-#
 def xgbsearch_fit_sep():
+    """
+    Plot fit stats for xgbsearched par combinations for each station 
+    separately.
+
+    """
     for c_station in dt.loc['station'].unique():
         sub = dt.loc[:, dt.loc['station'] == c_station]
         sub = sub.dropna(thresh=1, axis=0)
@@ -26,12 +28,12 @@ def xgbsearch_fit_sep():
         plt.close()
 
 
-# ____________________________________________________________________
-
-# plot averaged fit stats for xgbsearched par combinations 
-#   for all stations
-#
 def xgbsearch_fit_comb():
+    """
+    Plot averaged fit stats for xgbsearched par combinations for all stations
+    combined.
+
+    """
     header_vars = ['station', 'range_opt', 'range_dist', 'inp_opt', 'cols_sub']
     
     big = pd.DataFrame()
@@ -65,12 +67,12 @@ def xgbsearch_fit_comb():
     plt.savefig('GS/plots/big.png')
     plt.close()
     
-
-# ____________________________________________________________________
-
-# plot NSE bar plot of NN ens
-#    
+  
 def presentation_plot_fit():
+    """
+    Plot NSE bar plot of NN ens fit.
+
+    """
     dt = pd.read_csv('meta/comp/Qn_stats.csv', index_col=0)
     dt = dt[[dt.columns[-1]]]
     
@@ -95,13 +97,11 @@ def presentation_plot_fit():
     plt.close()
 
 
-# ____________________________________________________________________
-
-# plot NSE bar plot of XGB models
-#
-#       : NOT USED
-#
 def presentation_plot_fit_xgb():
+    """
+    NOT USED: Plot NSE bar plot of XGB models
+
+    """
     import xgboost as xgb
     import joblib
     
@@ -137,12 +137,11 @@ def presentation_plot_fit_xgb():
         # print(c_exp, c_mod)
 
 
-
-# ____________________________________________________________________
-
-# plot NSE bar plot of XGB models
-#
 def presentation_plot_fit_xgb_retrain():
+    """
+    Plot NSE bar plot of XGB model fit. 
+
+    """
     import xgboost as xgb
     from sklearn import preprocessing
     from sklearn.model_selection import train_test_split
@@ -198,18 +197,4 @@ def presentation_plot_fit_xgb_retrain():
     plt.savefig('GS/NSE_fit_xgb.png')
     plt.close()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+''' __________________________ / PLOTS __________________________________ '''
