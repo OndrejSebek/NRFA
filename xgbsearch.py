@@ -25,7 +25,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
         # ___________________________ level1 ____________________________
         
         # for inp_opt in inp_opts:
-        for range_radius in np.arange(10000, range_rad_m, 10000):
+        for range_radius in np.arange(10, range_rad_m, 10):
             for range_opt in range_opts:
                 x.set_ids_radius(range_radius, range_radius, range_radius)
             
@@ -53,7 +53,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                     
                     # timelag merged inps
                     # out: lvl2 inp/exp
-                    x.timelag_inps(inp_opt, 5, 'all')
+                    x.timelag_inps(5, 'all', inp_opt)
                     
                     # skip if inp empty 
                     # (~when t-x=0 and only 1 inp(=exp))
@@ -94,7 +94,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                         # xgb inp subsetting
                         #
                         if xgb_sub > 0:
-                            x.merge_timelag_inps_subset('MO', xgb_sub)     
+                            x.merge_timelag_inps_subset(xgb_sub, 'MO')     
                         
                         # append total available n_rows for current subset
                         #
@@ -159,7 +159,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
 
 xgbsearch(['23011', '28015', '28022'],
           ['radius', 'updwn'],
-          50001,
+          51,
           ['MO', 'NRFA_only'],
           [10, 20, 30],
           5,

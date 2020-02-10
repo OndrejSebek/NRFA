@@ -13,6 +13,17 @@ from scipy.stats import t
 
 class Kernets:
     def __init__(self, station, n_nets):
+        """
+        Init kernets instance and subset *n_nets best (~RMSE fit) NNs.
+
+        Parameters
+        ----------
+        station : int/string
+            NRFA station ID
+        n_nets : int
+            nr. of nets to subset
+            
+        """
         self.station_id = str(station)
         self.nets = []
         self.scalers = []
@@ -50,6 +61,17 @@ class Kernets:
 
 
     def get_pred(self, bounds, conf=0.95):
+        """
+        Get prediction with all subsetted (__init__) NNs for given period.
+
+        Parameters
+        ----------
+        bounds : [int, int]
+            bounds used to subset data points
+        conf : float, optional
+            confidence level value, the default is 0.95
+            
+        """
         ndim = self.inps.ndim
         if self.inps.shape[ndim-1] != self.n_inps[0]:
             print('invalid n inps')
@@ -74,13 +96,13 @@ class Kernets:
         # comb
         self.pred = np.concatenate(self.pred, axis=1)
         
-        ''' weights '''
+        # WEIGHTS
+        #
         # rmses = pd.read_csv('RMSEs/keras_RMSE_'+self.station_id+'.csv')['val']
         weights = self.net_rmses['best_nets'].sum()/self.net_rmses['best_nets']
         
         self.m_w = np.average(self.pred, weights=weights, axis=1)
         self.std_w = np.sqrt(np.average((self.pred-self.m_w[:,None])**2, weights=weights, axis=1))
-        ''' _______ '''
         
         # conf intervals
         n = len(self.pred)
@@ -105,6 +127,10 @@ class Kernets:
     
     
     def save_pred(self):
+        """
+        Export modelled level3 timeseries.
+        
+        """
         # check for out directory
         if not os.path.exists('data/level3/'+self.station_id):
             os.mkdir('data/level3/'+self.station_id)
@@ -128,6 +154,10 @@ class Kernets:
    
     
     def get_orig_exp(self):
+        """
+        Get (@self.exp_orig) original (preQC) timeseries.
+
+        """
         self.exp_orig = pd.read_csv('data/level3/'+self.station_id+'/comp/'+self.station_id+'_orig.csv', index_col=0)
         self.exp_orig = pd.merge(self.obs, self.exp_orig, left_index=True, right_index=True, how='outer')
         self.exp_orig['orig'] = self.exp_orig['orig'].fillna(self.exp_orig[self.station_id])
@@ -141,10 +171,21 @@ class Kernets:
     
     
     def find_outliers(self, n_std=5, d_abs=5):
+        """
+        Z-score + ABS outlier flagging.
+
+        Parameters
+        ----------
+        n_std : float, optional
+            Z-score (nr. of STDs) threshold. The default is 5.
+        d_abs : float, optional
+            ABS threshold. The default is 5.
+
+        """
         # flag vals *n_std stds away from mean and with *d_abs absolute distance (mby redundant)
         exp_v = np.concatenate(self.exp_orig.values)
-        #fl = (abs(self.m - self.obs) > n_std*abs(self.std)) & (abs(self.m - self.obs) > d_abs)    # use qcd exp - obs
-        fl = (abs(self.m - exp_v) > n_std*abs(self.std)) & (abs(self.m - exp_v) > d_abs)        # use preqc exp - exp_v
+        #fl = (abs(self.m - self.obs) > n_std*abs(self.std)) & (abs(self.m - self.obs) > d_abs)    # use qcd exp - nn mod
+        fl = (abs(self.m - exp_v) > n_std*abs(self.std)) & (abs(self.m - exp_v) > d_abs)        # use preqc exp - nn mod
        
         # self.flagged = self.obs.copy()
         self.flagged = self.exp_orig.values
@@ -172,6 +213,15 @@ class Kernets:
                 
                 
     def plots(self, n_dt):
+        """
+        Outlier flagging plots
+
+        Parameters
+        ----------
+        n_dt : int
+            subset last *n_dt data points (0 for no subsetting)
+
+        """
         if not os.path.exists('plots/'+self.station_id+'/comp/'):
             os.mkdir('plots/'+self.station_id+'/comp/')
             
@@ -204,6 +254,3 @@ class Kernets:
         #plt.plot(self.obs.values)
         plt.savefig('plots/'+self.station_id+'/comp/flags_kde.jpg')
         plt.close()
-
-        
-        

@@ -91,7 +91,7 @@ def presentation_plot_fit():
     # pio.write_html(fig, file='fig1.html', auto_open=False)
     
     dt.sort_values('comb_NSE').plot.bar(figsize=(10,5))    
-    plt.savefig('NSE_fit.png')
+    plt.savefig('GS/NSE_fit.png')
     plt.close()
 
 
@@ -195,7 +195,7 @@ def presentation_plot_fit_xgb_retrain():
     NSEs.columns = ['xgb_NSE']
     
     NSEs.sort_values('xgb_NSE').plot.bar(figsize=(10,5))    
-    plt.savefig('NSE_fit_xgb.png')
+    plt.savefig('GS/NSE_fit_xgb.png')
     plt.close()
 
 

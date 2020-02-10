@@ -9,9 +9,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
-from math import sqrt
-
 from sklearn import preprocessing
+from math import sqrt
 
 import matplotlib.pyplot as plt
 
@@ -20,10 +19,16 @@ import requests
 
 
 class NRFA:
-    # init NRFA instance and check if ID valid,
-    # set easting, northing
-    #
     def __init__(self, station_id):
+        """
+        Init NRFA instance and check if ID valid, set easting + northing.
+
+        Parameters
+        ----------
+        station_id : int/string
+            NRFA station ID
+
+        """
         self.data_loaded = 0
         self.station_id = str(station_id)
         
@@ -48,11 +53,14 @@ class NRFA:
         else:
             print('invalid station id')
 
+
+    ''' _____________________________ DATA _______________________________ '''       
     
-    # fetch NRFA and EA api metadata 
-    # (station IDs, easting, northing)
-    #
     def fetch_meta(self):
+        """
+        Fetch NRFA and EA api metadata (station IDs, easting, northing).
+
+        """
         # NRFA meta:
         nrfa_mt = []
         for i in self.station_ids:
@@ -76,15 +84,35 @@ class NRFA:
         api_ids = pd.DataFrame(columns=['id', 'easting', 'northing'])
         for i in data['items']:
             if all(['easting' in i, 'northing' in i]):
-                api_ids = api_ids.append({'id': i['notation'], 'easting': i['easting'], 'northing': i['northing']}, ignore_index=True)
+                api_ids = api_ids.append({'id': i['notation'], 
+                                          'easting': i['easting'], 
+                                          'northing': i['northing']},
+                                         ignore_index=True)
        
         api_ids['id'] = api_ids['id'].apply(self.format_EA_ids_helper)
         api_ids.to_csv('meta/EA_API_meta.csv', index=False)
      
     
-    # identify NRFA and EA ids in specified radius
-    #
-    def set_ids_radius(self, thr_NRFA, thr_EA, thr_MO):            
+    def set_ids_radius(self, thr_NRFA, thr_EA, thr_MO): 
+        """
+        Identify nearby NRFA station and EA RG IDs in the specified radius, 
+        set self.nearby_xxx. 
+
+        Parameters
+        ----------
+        thr_NRFA : int
+            maximum distance for NRFA stations [km]
+        thr_EA : int
+            maximum distance for EA RGs [km].
+        thr_MO : int
+            maximum distance for MO RGs [km]
+
+        """
+        # conv to [km]
+        thr_NRFA *= 1000
+        thr_EA *= 1000
+        thr_MO *= 1000
+           
         # NRFA station ids within *thr m
         meta_NRFA = pd.read_csv('meta/NRFA_meta.csv')        
         self.nearby_NRFA = []
@@ -95,13 +123,14 @@ class NRFA:
                 east = meta_NRFA['easting'].loc[i]
                 north = meta_NRFA['northing'].loc[i]
     
-                dist = np.sqrt( (east-self.east)*(east-self.east) + (north-self.north)*(north-self.north) )
+                dist = np.sqrt( (east-self.east)*(east-self.east) 
+                               + (north-self.north)*(north-self.north) )
                 if dist < thr_NRFA:
                     self.nearby_NRFA.append(str(meta_NRFA['NRFA_ID'].loc[i]))
         else:
             print('identifying NRFA stations within the catchment')
             for i in self.station_ids:
-                if str(i)[:2] == self.station_id[:2] and len(str(i)) == len(self.station_id):
+                if (str(i)[:2] == self.station_id[:2]) and (len(str(i)) == len(self.station_id)):
                     self.nearby_NRFA.append(str(i))                       
             
         print('stations found:', self.nearby_NRFA, '\n')
@@ -144,7 +173,18 @@ class NRFA:
         print('gauges found:', self.nearby_MORAIN, '\n')
     
     
-    def set_ids_updwnstream(self, dist):
+    def set_ids_updwnstream(self, dist=0):
+        """
+        Set nearby_NRFA based on upstream/downstream meta file, up to 
+        *dist [km] away (along the watercourse).
+
+        Parameters
+        ----------
+        dist : int
+            maximum distance for target station [km], 0 to include all.
+            The default is 0.
+
+        """
         meta = pd.read_excel('stations_upstream_downstream/nrfa_nearest_sites.xlsx',
                              sheet_name='nrfa_nearest_sites')
         
@@ -157,7 +197,17 @@ class NRFA:
         if self.station_id not in self.nearby_NRFA:
             self.nearby_NRFA.extend([self.station_id])
     
-    def update_ids_local(self, empty_NHA = 0):
+    def update_ids_local(self, empty_NHA=0):
+        """
+        Update self.nearby_NRFA based on local files (to remove stations with
+        no data).
+
+        Parameters
+        ----------
+        empty_NHA : int, optional
+            1 to set nearby_gauges_NHA to empty list. The default is 0.
+
+        """
         NRFA_ids = []
         for file in os.listdir('data/nrfa_raw/'+self.station_id):
             # print(file)
@@ -168,9 +218,13 @@ class NRFA:
         if empty_NHA:
             self.nearby_gauges_NHA = []
         
-    # fetch (api) idetified NRFA historical flows
-    #       
-    def fetch_NRFA(self):       
+        
+    def fetch_NRFA(self):  
+        """
+        Fetch idetified NRFA historical flows from the API and export
+        to level1.
+        
+        """
         # fetch timeseries
         data = pd.DataFrame()
         for i in self.nearby_NRFA:
@@ -190,10 +244,12 @@ class NRFA:
         data.to_csv('data/level1/'+self.station_id+'/'+self.station_id+'_NRFA.csv')
         
     
-    # fetch (local) identified EA gauge rainfall
-    # and aggregate to daily from 30min
-    #
     def fetch_agg_EA(self):
+        """
+        Fetch (local) identified EA gauge rainfall and aggregate to daily
+        from 30min. Export to level1.
+        
+        """
         gf_df = pd.DataFrame()
 
         if len(self.nearby_gauges_NHA) != 0:
@@ -233,6 +289,10 @@ class NRFA:
       
         
     def fetch_MO(self):
+        """
+        Fetch MORAIN rainfall data and export to level1.
+
+        """
         gf_df = pd.DataFrame()
 
         if len(self.nearby_MORAIN) != 0:
@@ -267,14 +327,26 @@ class NRFA:
         gf_df[gf_df < 0] = np.nan
         # print(gf_df.columns.values)
         gf_df.to_csv('data/level1/'+self.station_id+'/'+self.station_id+'_MO.csv')
+ 
+    ''' ___________________________ / DATA _______________________________ '''       
         
-        
-    # ''' _____________________________ DATA ________________________________ '''        
+    
+    ''' ________________________ PREPROCESSING ___________________________ '''   
+     
+    def merge_inps(self, src='MO', ratio=.9): 
+        """
+        Merge NRFA station & EA gauge data into inps df (doesn't set inp/exp)
 
-    # merge NRFA station & EA gauge data
-    # into inps df (doesn't set inp/exp)
-    #    
-    def merge_inps(self, src, ratio): 
+        Parameters
+        ----------
+        src : string, optional
+            Rainfall data source ['EA', 'MO']. The default is 'MO'.
+        ratio : float, optional
+            Data completeness/overlap threshold. The default is .9. All 
+            stations with < *ratio % of target NRFA station data points
+            are excluded.
+
+        """
         if src == 'EA':
             data_EA = pd.read_csv('data/level1/'+self.station_id+'/'+self.station_id+'_EA.csv',
                                   index_col=0, header=0)
@@ -341,11 +413,21 @@ class NRFA:
                 
         merged.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'.csv')
 
-  
-    # load data, timelag all inps up to t-(*t_x)
-    # and set inp/exp
-    #
-    def timelag_inps(self, src, t_x, lag_opt):
+
+    def timelag_inps(self, t_x, lag_opt, src='MO'):
+        """
+        Load data, timelag all inps up to t-(*t_x) and set inp/exp.
+
+        Parameters
+        ----------
+        t_x : int
+            max timelag value (t-x)
+        lag_opt : string
+            DESCRIPTION. ['station', 'EA', 'EA&station', 'NRFA', 'all']
+        src : string, optional
+            Rainfall data source ['EA', 'MO']. The default is 'MO'.
+
+        """
         data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'.csv',
                            index_col=0, header=0)
         skip_lagging = 0
@@ -477,10 +559,20 @@ class NRFA:
         self.inp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp_merged.csv')
         self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp_merged.csv', header=True)
     
-    
-    # timelag *n_t_xs most important inps based on [XGB GAIN]
-    # - overwrites .._merged_inp & .._merged_out files
-    def merge_timelag_inps_subset(self, src, n_t_xs):
+
+    def merge_timelag_inps_subset(self, n_t_xs, src='MO'):
+        """
+        Timelag *n_t_xs most important inps based on [XGB GAIN], overwrites 
+        .._merged_inp & .._merged_out files.
+
+        Parameters
+        ----------
+        n_t_xs : int
+            nr. of inp features to subset
+        src : string, optional
+            Rainfall data source ['EA', 'MO']. The default is 'MO'.
+
+        """
         if n_t_xs > self.xgb_feature_imps.shape[0]:
             n_t_xs = self.xgb_feature_imps.shape[0]
             
@@ -608,12 +700,18 @@ class NRFA:
         self.inp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp_merged.csv')
         self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp_merged.csv', header=True)
 
-            
-    # load data if not done while timelagging, 
-    # normalise inputs, set inp/exp and 
-    # separate cal/val subsets
-    #
+
     def set_scale_inps(self, scaler_id=-1):
+        """
+        Load data if not done while timelagging, standardise inputs, set 
+        inp/exp and separate cal/val subsets.
+
+        Parameters
+        ----------
+        scaler_id : int, optional
+            ID for exported scaler, -1 to disable. The default is -1.
+
+        """
         if not self.data_loaded:
             data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'.csv',
                                index_col=0, header=0)
@@ -644,9 +742,23 @@ class NRFA:
         self.y_mean = exp.mean()
         
         
-    # k fold crossval + stand
-    #
     def set_scale_inps_kf(self, n_folds, cur_fold, scaler_id=-1):
+        """
+        K fold crossval + standardisation.
+        
+        Load data if not done while timelagging, standardise inputs, set 
+        inp/exp and separate cal/val subsets.
+
+        Parameters
+        ----------
+        n_folds : int
+            total nr. of folds
+        cur_fold : int
+            current fold
+        scaler_id : int, optional
+            ID for exported scaler, -1 to disable. The default is -1.
+
+        """
         if not self.data_loaded:
             data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'.csv',
                                index_col=0, header=0)
@@ -668,6 +780,8 @@ class NRFA:
             joblib.dump(scaler_inp, '_models/'+self.station_id+'/scaler'+str(scaler_id)+'.pkl')
         
         
+        # set KFold indices if first epoch (first fold) 
+        #
         if cur_fold == 0:
             self.kf = KFold(n_splits=n_folds, random_state=None, shuffle=True)
         
@@ -687,14 +801,21 @@ class NRFA:
         
         self.y_mean = exp.mean()
         
+    ''' ______________________ / PREPROCESSING ___________________________ '''   
         
-    ''' 
-    KERAS
     
-    '''
-    # define keras model topology and callbacks
-    #
-    def keras_model(self, lr):
+    ''' ___________________________ KERAS ________________________________ '''
+
+    def keras_model(self, lr=1e-5):
+        """
+        Define keras model topology and callbacks.
+
+        Parameters
+        ----------
+        lr : float, optional
+            NN learning rate. The default is 1e-5.
+
+        """
         # create model
         self.model = tf.keras.Sequential([
         tf.keras.layers.Dense(128, activation='relu', input_shape=(self.x_val.shape[1],)),
@@ -733,11 +854,18 @@ class NRFA:
         self.RMSE = pd.DataFrame(columns=['nRMSE_cal', 'nRMSE_val', 'rows', 'cols'])
         self.epoch = 0
     
-    
-    # fit (train) model on inp/exp datasets and
-    # save RMSE score for current run
-    #
+
     def keras_fit(self, ep):
+        """
+        Fit (train) model on inp/exp datasets and save RMSE score for the
+        current run.
+
+        Parameters
+        ----------
+        ep : int
+            nr. of epochs for training
+
+        """
         self.history = self.model.fit(self.cal_dataset, epochs=ep,
                                       validation_data=self.val_dataset, 
                                       callbacks=[self.cb_es, self.cb_rlr],
@@ -760,10 +888,12 @@ class NRFA:
                                       'rows': self.y_cal.shape[0]+self.y_val.shape[0], 
                                       'cols': self.x_cal.shape[1]}, ignore_index=True)
 
-    
-    # export keras ts/sc plots
-    #
+
     def keras_plots(self):
+        """
+        Export keras ts/sc plots.
+        
+        """
         if not os.path.exists('plots/'+self.station_id):
             os.mkdir('plots/'+self.station_id)
         if not os.path.exists('plots/'+self.station_id+'/keras/'):
@@ -791,16 +921,17 @@ class NRFA:
         plt.legend()
         plt.savefig('plots/'+self.station_id+'/keras/history.png', dpi=300)
         plt.close()
-    
-    
-    ''' 
-    XGBoost
-    
-    '''
-    # define XGBoost model and fit to inp/exp
-    # data, set RMSE df
-    #
+        
+    ''' _________________________ / KERAS ________________________________ '''
+
+
+    ''' __________________________ XGBoost _______________________________ '''
+
     def xgb_model_fit(self):
+        """
+        Define XGBoost model and fit to inp/exp data, set RMSE df.
+
+        """
         self.xgb_reg = xgb.XGBRegressor(base_score=0.5, booster='gbtree', colsample_bylevel=1, 
                                         colsample_bynode=1, colsample_bytree=1, gamma=0,
                                         importance_type='gain', learning_rate=0.1, max_delta_step=0,
@@ -838,11 +969,13 @@ class NRFA:
                                   'nRMSE_val': nrmse_val,
                                   'rows': self.y_cal.shape[0]+self.y_val.shape[0],
                                   'cols': x_cal.shape[1]}, index=[0])
-    
-    
-    # export XGB ts/sc/tree plots
-    #
+      
+        
     def xgb_plots(self):
+        """
+        Export XGB ts/sc/tree plots.
+
+        """
         # check for directories
         if not os.path.exists('plots/'+self.station_id):
             os.mkdir('plots/'+self.station_id)
@@ -866,7 +999,6 @@ class NRFA:
         plt.ylim(0, max(self.y_cal))
         plt.savefig('plots/'+self.station_id+'/xgb/sc_cal.png')
         plt.close()
-        
         
         # timeseries plot val/val
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(80, 10), sharey=True, dpi=300)
@@ -899,18 +1031,19 @@ class NRFA:
         ax.tick_params(axis='both', which='minor', labelsize=3)
         plt.savefig('plots/'+self.station_id+'/xgb/tree.png', dpi=300, max_num_features=10)
         plt.close()
+    
+    ''' ________________________ / XGBoost _______________________________ '''
   
     
-    '''
-    check EA API gauges
-    
-    '''
-    
-    # helper function to format EA ids to
-    # capital letters and (atleast) 6 digit numeric codes 
-    #
+    ''' _________________________ helpers ________________________________ ''' 
+
     @staticmethod
     def format_EA_ids_helper(x):
+        """
+        Helper function to format EA ids to capital letters and (atleast)
+        6 digit numeric codes.
+
+        """
         if x != x.upper():
             x = x.upper()
         if len(x) < 6 and x.isdigit():
@@ -918,12 +1051,13 @@ class NRFA:
            for i in range(zrs):
                x = '0' + x
         return x
-    
-    
-    # check for identified EA gauges on the  
-    # real-time rainfall API
-    #
+
+
     def EA_ids_on_api(self):
+        """
+        Check for identified EA gauges on the real-time rainfall API.
+
+        """
         api_ids = pd.read_csv('meta/EA_API_meta.csv')
         
         self.nearby_gauges_API = []
@@ -935,13 +1069,16 @@ class NRFA:
         print('present on API:', self.nearby_gauges_API, '\n')
 
 
-
-
-    '''
-    NSE helper
-    
-    '''
     def NSE(self):
+        """
+        Calculate NSE for cal and val periods (self.y_mod_cal, self.y_mod_val).
+
+        Returns
+        -------
+        list
+            [NSE_cal, NSE_val]
+
+        """
         NSE_cal = 1 - ( ((self.y_cal-self.y_mod_cal)*(self.y_cal-self.y_mod_cal)).sum()
                        /((self.y_cal-self.y_cal.mean())*(self.y_cal-self.y_cal.mean())).sum()
                        )
@@ -952,5 +1089,4 @@ class NRFA:
   
         return [NSE_cal, NSE_val]
 
-
-
+    ''' ________________________ / helpers _______________________________ '''

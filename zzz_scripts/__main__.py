@@ -20,7 +20,7 @@ for sta_id in [46014]:
     
     # init stations
     x = nrfa.NRFA(st_id)
-    x.set_ids_radius(20000, 20000)
+    x.set_ids_radius(20, 20, 20)
     
     # adjust to missing gdf-live data
     if st_id == 37008:

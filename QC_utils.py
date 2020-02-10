@@ -1,18 +1,26 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import os
 
-import tensorflow as tf
-import joblib
 from sklearn.metrics import mean_squared_error
 from math import sqrt
-
-import os
+import matplotlib.pyplot as plt
 
 import NRFA_v3 as nrfa
 
 
+''' ______________________________ DATA  __________________________________'''
+
 def fetch_NRFA_local_2019(station_id):
+    """ 
+    Fetch local NRFA data files and create level1 data.
+
+    Parameters
+    ----------
+    station_id : int/string
+        NRFA station ID
+
+    """
     bigf = pd.DataFrame()
     for file in os.listdir('data/nrfa_raw/'+str(station_id)):
         print(file)
@@ -58,10 +66,17 @@ def fetch_NRFA_local_2019(station_id):
     bigf.to_csv('data/level1/'+str(station_id)+'/'+str(station_id)+'_NRFA.csv')
 
 
-
 def fetch_preqc_qc(station_id):
-    # y1 = pd.read_csv('data/_NRFA_qc/data/'+str(station_id)+'/'+str(station_id)+'_NRFA.csv',
-    #                  index_col=0)[[str(station_id)]]
+    """
+    Fetch original (preQC) and corrected (postQC) timeseries, export to level3
+    data.
+
+    Parameters
+    ----------
+    station_id : int/string
+        NRFA station ID
+        
+    """
     y1 = pd.read_csv('data/level1/'+str(station_id)+'/'+str(station_id)+'_NRFA.csv',
                      index_col=0)[[str(station_id)]]
 
@@ -75,11 +90,7 @@ def fetch_preqc_qc(station_id):
     mrgd['orig'] = mrgd['FLOW_VALUES'].apply(get_orig)
     mrgd['new'] = mrgd['FLOW_VALUES'].apply(get_new)
 
-
-    ''' change exp to pre-audit '''
-    
-    # exp_o = pd.read_csv('data/_NRFA_qc/data/'+str(station_id)+'/'+str(station_id)+'_exp_merged.csv',
-    #                     index_col=0)
+    # change exp to pre-audit
     exp_o = pd.read_csv('data/level2/'+str(station_id)+'/'+str(station_id)+'_exp_merged.csv',
                         index_col=0)
     
@@ -89,8 +100,7 @@ def fetch_preqc_qc(station_id):
     mrgd_exp.loc[mrgd_exp['orig'] == 'nan', ['orig']] = np.nan
     mrgd_exp['orig'] = mrgd_exp['orig'].fillna(mrgd_exp[str(station_id)]).astype(float)
     
-    
-    ''' export preqc/qcd '''
+    # export preqc/qcd
     if not os.path.exists('data/level3/'+str(station_id)+'/comp'):
         os.mkdir('data/level3/'+str(station_id)+'/comp')
 
@@ -98,8 +108,21 @@ def fetch_preqc_qc(station_id):
     mrgd_exp[[str(station_id)]].to_csv('data/level3/'+str(station_id)+'/comp/'+str(station_id)+'_qcd.csv')
 
 
-
 def merge_preqc_qc_nn(station_id):
+    """
+    Calculate and export preQC & postQC dataframe.
+
+    Parameters
+    ----------
+    station_id : int/string
+        NRFA station ID
+
+    Returns
+    -------
+    out : pd.DataFrame
+        merged preQC & postQC df
+
+    """
     # read qcd data
     mrgd = pd.read_csv('data/level3/'+str(station_id)+'/'+str(station_id)+'_merged.csv',
                        index_col=0)
@@ -114,8 +137,30 @@ def merge_preqc_qc_nn(station_id):
     return out
 
 
-
 def get_metrics(station_id, mrgd_orig, n_dt):
+    """
+    Calculate RMSE & MAE fit stats for [preqc x obs, mod x obs, preqcd x mod].
+
+    Parameters
+    ----------
+    station_id : int/string
+        NRFA station ID
+    mrgd_orig : pd.DataFrame
+        merged df with obs and mod values
+    n_dt : int
+        subset last *n_dt data points (0 for no subsetting)
+
+    Returns
+    -------
+    rmse : list
+        rmse [preqc x obs, mod x obs, preqcd x mod]
+    mae : list
+        mae [preqc x obs, mod x obs, preqcd x mod]
+
+    """
+    if n_dt == 0:
+        n_dt = mrgd_orig.shape[0]
+        
     rmse_1 = sqrt(mean_squared_error(mrgd_orig[str(station_id)].values[-n_dt:], mrgd_orig['orig'].values[-n_dt:])) 
     rmse_2 = sqrt(mean_squared_error(mrgd_orig[str(station_id)].values[-n_dt:], mrgd_orig['nn_m'].values[-n_dt:])) 
     rmse_3 = sqrt(mean_squared_error(mrgd_orig['orig'].values[-n_dt:], mrgd_orig['nn_m'].values[-n_dt:])) 
@@ -129,9 +174,10 @@ def get_metrics(station_id, mrgd_orig, n_dt):
 
     return rmse, mae
 
+''' ___________________________ / DATA ____________________________________'''
 
 
-''' ________________ helpers __________________ '''
+''' ___________________________ helpers __________________________________ '''
 
 def is_float(string):
     try:
@@ -159,11 +205,25 @@ def get_new(x):
                 x_ = x_[1:]           
     return x_
 
-''' ____________________________________________ '''
+''' ________________________ / helpers __________________________________ '''
 
 
-# REDUNDANT
+''' ________________________ STATS & META _______________________________ '''
+
 def plot_preqc_qc_nn(station_id, mrgd, n_dt):
+    """
+    REDUNDANT: QC correction plot.
+
+    Parameters
+    ----------
+    station_id : int/string
+        NRFA station ID
+    mrgd : pd.DataFrame
+        merged df with preqc & postqc data
+    n_dt : int
+        subset last *n_dt data points (0 for no subsetting)
+
+    """
     st_id = str(station_id)
     x_m = pd.read_csv('data/level3/'+st_id+'/nn/x_m.csv', index_col=0)
     x_m.index = mrgd.index
@@ -195,11 +255,11 @@ def plot_preqc_qc_nn(station_id, mrgd, n_dt):
     plt.close()
 
 
-
-# calculate overall and Q70/30 fit stats
-#   (RMSEs, stds, NSEs)
-#
-def comp_Qn_nRMSE():
+def Qn_fit_stats():
+    """
+    Calculate overall and individual Q70/30 fit stats (RMSEs, STDs, NSEs).
+    
+    """    
     big_rmse = []
     for station in os.listdir('data/level3/'):
         cur_dt = pd.read_csv('data/level3/'+station+'/'+station+'_merged.csv',
@@ -242,8 +302,11 @@ def comp_Qn_nRMSE():
     big_rmse.to_csv('meta/comp/Qn_stats.csv', index=False)
 
 
-
 def comp_v2_v3_RMSEs():
+    """
+    Compare v2 and v3 model fits. Exports comp df.
+    
+    """
     big_df = []
     for file in os.listdir('plots'):
         v2_rmse = pd.read_csv('../NRFA_.2/RMSEs/keras_RMSE_'+file+'.csv',
@@ -259,11 +322,11 @@ def comp_v2_v3_RMSEs():
     big_df.to_csv('meta/comp/v2_v3_RMSEs.csv', index=False)
 
 
-
-
-
-
-def gdf_qc_changes():
+def qc_correction_stats():
+    """
+    QC correction stats for each NRFA station.
+    
+    """ 
     meta = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts.csv')
 
     big = []
@@ -285,12 +348,15 @@ def gdf_qc_changes():
         big.append([station, ch_sum, ch_a, ch_max])
     
     big = pd.DataFrame(big, columns=['station', 'all_sum', 'top10_sum', 'all_max'])
-    big.to_csv('meta/qc_changes.csv', index=False)
+    big.to_csv('meta/qc_correction_stats.csv', index=False)
 
 
-def model_fit_inp_tables(station, n_inps):
-    model_inps = pd.read_csv('_model_inps/'+station+'.csv')
+def model_inp_subtables(station, n_inps):
+    """
+    Inp feature tables w/ weights (importances).
     
+    """
+    model_inps = pd.read_csv('_model_inps/'+station+'.csv')   
     stations = model_inps['colname'][:n_inps].astype(str)
     
     sts = []
@@ -301,8 +367,8 @@ def model_fit_inp_tables(station, n_inps):
             st = i
             
         sts.append(st)
-    sts = np.unique(sts)
-    
+        
+    sts = np.unique(sts) 
     st_map = pd.DataFrame(np.zeros((len(sts), 4)),
                           index=sts, columns=range(4))
     
@@ -314,35 +380,28 @@ def model_fit_inp_tables(station, n_inps):
             st = i
             t = 0
     
-        st_map.loc[st, int(t)] = model_inps.loc[model_inps['colname']==i, 'feature_importance']
+        st_map.loc[st, int(t)] = model_inps.loc[model_inps['colname']==i,
+                                                'feature_importance']
    
-    st_map.loc[station, 0] = -1
-    
+    st_map.loc[station, 0] = -1    
     st_map.to_csv('_model_inps_subtable/'+station+'.csv', index=True)
 
 
+# for st in os.listdir('plots'):
+#     model_inp_subtables(st, 20)
 
-
-
-
-
-
-for st in os.listdir('plots'):
-    model_fit_inp_tables(st, 20)
-    
-
-
-
-
-''' _____________ total days for x stations ~ NRFA site _________________'''
 
 def xstations_ndata_nrfa():
+    """
+    Total days for x stations ~ NRFA site.
+    
+    """
     n = []
     for i in os.listdir('_model_inps'):
         st_id = i[:-4]
     
         x = nrfa.NRFA(st_id)
-        x.set_ids_radius(20000, 20000, 20000)
+        x.set_ids_radius(20, 20, 20)
         
         ns = [st_id]
         for j in np.arange(.1, 1.1, .1):
@@ -353,29 +412,34 @@ def xstations_ndata_nrfa():
             ns.append(x2.shape[0])
         
         n.append(ns)
+
+    # m = n.copy()
     
-    m = n.copy()
-    
+    # export + plot:
+    #
     n = pd.DataFrame(n)
-    n.set_index(0, inplace=True)
-    n.columns = np.arange(.1, n.shape[1]*.1, .1)
+    n.set_index(0, drop=True, inplace=True)
+    n.columns = np.arange(.1, (n.shape[1]+1)*.1, .1)
     
     for ind in n.index:
         n.loc[ind] /= n.loc[ind, n.columns[-1]]
         
-    
     n.to_csv('meta/nst_xdt.csv')
-    pd.DataFrame(m).to_csv('meta/mmmmm_nst_xdt.csv')
+    # pd.DataFrame(m).to_csv('meta/m_nst_xdt.csv')
 
-    fig = plt.figure(figsize=(10, 5), dpi=300)
-    plt.plot(n.T, linestyle='--')
-    plt.savefig('___a.jpg')
+    # fig = plt.figure(figsize=(10, 5), dpi=300)
+    # plt.plot(n.T, linestyle='--')
+    # plt.savefig('___a.png')
+    # plt.close()
+    
+    labs = [.1, .2, .3, .4, .5, .6, .7, .8, .9, 1.]
+    plt.boxplot(n.T, notch=True, labels=labs)
+    plt.xlabel('stations')
+    plt.ylabel('inp data completeness')
+    plt.savefig('boxplot_nst_xdt.png')
     plt.close()
+    
+    
+# xstations_ndata_nrfa()
 
-
-
-xstations_ndata_nrfa()
-
-
-
-
+''' ________________________ / STATS & META ______________________________'''
