@@ -170,7 +170,7 @@ class Kernets:
         self.exp_orig = self.exp_orig[['orig']]
     
     
-    def find_outliers(self, n_std=5, d_abs=5):
+    def find_outliers(self, n_std=5, d_abs=0):
         """
         Z-score + ABS outlier flagging.
 
@@ -179,13 +179,13 @@ class Kernets:
         n_std : float, optional
             Z-score (nr. of STDs) threshold. The default is 5.
         d_abs : float, optional
-            ABS threshold. The default is 5.
+            ABS threshold. The default is 0.
 
         """
         # flag vals *n_std stds away from mean and with *d_abs absolute distance (mby redundant)
         exp_v = np.concatenate(self.exp_orig.values)
         #fl = (abs(self.m - self.obs) > n_std*abs(self.std)) & (abs(self.m - self.obs) > d_abs)    # use qcd exp - nn mod
-        fl = (abs(self.m - exp_v) > n_std*abs(self.std)) & (abs(self.m - exp_v) > d_abs)        # use preqc exp - nn mod
+        fl = (abs(self.m - self.exp_orig.values) > n_std*abs(self.std).values) & (abs(self.m.values - self.exp_orig.values) > d_abs)        # use preqc exp - nn mod
        
         # self.flagged = self.obs.copy()
         self.flagged = self.exp_orig.values

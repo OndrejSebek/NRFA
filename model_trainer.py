@@ -16,13 +16,15 @@ IDS = [34018, 30002, 28044, 48001, 40017, 46005, 54017, 28015, 39056, 46014,
 
 '''
 
-
 ''' __________________________  STATION ID  ______________________________ '''
+
+IDS = [49006]
+
 for st_id in IDS:
     
     # init stations
     x = nrfa.NRFA(st_id)
-    x.set_ids_radius(20, 20, 20)
+    x.set_ids_radius(50, 50, 50)
     
     # adjust to missing gdf-live data
     x.update_ids_local(empty_NHA=0)
@@ -40,15 +42,12 @@ for st_id in IDS:
     x.fetch_agg_EA()
     x.fetch_MO()
 
-    ratio = .9
-
-
     ''' ____________________________ xgb ________________________________ '''
     
     # do scaler separately (i=99)
     
     # level2
-    x.merge_inps('NRFA_only', ratio)
+    x.merge_inps(ratio=.95)
     x.timelag_inps(5, 'all', 'MO')
     x.scale_split_traintest() 
 
@@ -77,7 +76,7 @@ for st_id in IDS:
         print(i, '/19: ', x.RMSE.values)
         
     y = nrfa.pd.DataFrame(nrfa.np.concatenate(big_RMSE)).drop_duplicates()
-    y.columns = ['cal', 'val', 'epoch', 'rows', 'cols']
+    y.columns = ['cal', 'val', 'rows', 'cols']
     y.to_csv('RMSEs/keras_RMSE_'+str(st_id)+'.csv')
     
     x.keras_plots()
@@ -86,18 +85,21 @@ for st_id in IDS:
 ''' ____________________________ KERNETS ________________________________ '''
 
 for st_id in IDS:
-    x = knets.Kernets(st_id, 10)
+    z = knets.Kernets(st_id, 10)
     
-    x.get_pred(bounds=0, conf=.95)
-    x.save_pred()
+    z.get_pred(bounds=0, conf=.95)
+    z.save_pred()
     
     # preqc/qc files
     qc_u.fetch_preqc_qc(st_id)
     mrgd = qc_u.merge_preqc_qc_nn(st_id)
     
-    # x.get_orig_exp()
-    # x.find_outliers(1, .1) 
-    # x.plots(2000)
+    # z.get_orig_exp()
+    # z.find_outliers() 
+    # z.plots(2000)
 
 
-
+# mrgd.iloc[-400:].plot(figsize=(100, 20))
+# plt.savefig('awda.png')
+# plt.legend()
+# plt.close()

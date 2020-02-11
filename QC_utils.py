@@ -358,19 +358,23 @@ def model_inp_subtables(station, n_inps):
     """
     model_inps = pd.read_csv('_model_inps/'+station+'.csv')   
     stations = model_inps['colname'][:n_inps].astype(str)
+    t_lag_max = 0
     
     sts = []
     for i in stations:
         if i[-2] == '-':
             st = i[:-2]
+            t = int(i[-1])
         else:
             st = i
+            t = 0
             
         sts.append(st)
+        t_lag_max = t if t > t_lag_max else t_lag_max
         
     sts = np.unique(sts) 
-    st_map = pd.DataFrame(np.zeros((len(sts), 4)),
-                          index=sts, columns=range(4))
+    st_map = pd.DataFrame(np.zeros((len(sts), t_lag_max+1)),
+                          index=sts, columns=range(t_lag_max+1))
     
     for i in stations:
         if i[-2] == '-':
@@ -379,9 +383,9 @@ def model_inp_subtables(station, n_inps):
         else:
             st = i
             t = 0
-    
+
         st_map.loc[st, int(t)] = model_inps.loc[model_inps['colname']==i,
-                                                'feature_importance']
+                                                'feature_importance'].values
    
     st_map.loc[station, 0] = -1    
     st_map.to_csv('_model_inps_subtable/'+station+'.csv', index=True)
