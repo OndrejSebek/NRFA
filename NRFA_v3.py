@@ -18,6 +18,22 @@ import os
 import requests
 
 
+"""
+NRFA/EA/MO data:
+    level1: merged raw data from each src as timeseries pd.DataFrame()
+    level2: merged combined timeseries df without gaps, subset of inps
+            + inp/exp timeseries df, timelagged, no gaps, no transforms
+    level3: ->kernets
+
+preprocessing:
+    exports inp data scalers
+
+models:
+    defines & trains keras/xgb models
+    exports fit stats
+    plots
+
+"""
 class NRFA:
     def __init__(self, station_id):
         """
@@ -111,7 +127,7 @@ class NRFA:
             print('invalid station id')
 
 
-    ''' _____________________________ DATA _______________________________ '''       
+    ''' _____________________________ META _______________________________ '''       
     
     def fetch_meta(self):
         """
@@ -274,8 +290,12 @@ class NRFA:
         
         if empty_NHA:
             self.nearby_NHA = []
+
+    ''' ____________________________ / META ______________________________ '''       
+
         
-        
+    ''' _____________________________ DATA _______________________________ '''
+       
     def fetch_NRFA(self):  
         """
         Fetch idetified NRFA historical flows from the API and export
@@ -291,7 +311,6 @@ class NRFA:
             
             cur_dt = pd.DataFrame({str(i): z['data-stream'][1::2]}, index=z['data-stream'][::2])
             data = pd.concat([data, cur_dt], axis=1, sort=False)
-            
             
         data.index = pd.to_datetime(data.index)
         data = data.sort_index()
@@ -469,25 +488,25 @@ class NRFA:
             print('\n ', merged.index[0], ' - ', merged.index[-1], '\n')
             print('merged inps: ', merged.columns.values)
                 
-        merged.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'.csv')
+        merged.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv')
 
 
     def timelag_inps(self, t_x, lag_opt, src='MO'):
         """
         Load data, timelag all inps up to t-(*t_x) and set inp/exp.
-        Exports level2 data.
+        Reads level2 merged data, exports level2 inp/exp data.
 
         Parameters
         ----------
         t_x : int
             max timelag value (t-x)
         lag_opt : string
-            DESCRIPTION. ['station', 'EA', 'EA&station', 'NRFA', 'all']
+            Which inputs to timelag ['station', 'EA', 'EA&station', 'NRFA', 'all'].
         src : string, optional
             Rainfall data source ['EA', 'MO']. The default is 'MO'.
 
         """
-        data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'.csv',
+        data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
                            index_col=0, header=0)
         skip_lagging = 0
         
@@ -615,14 +634,15 @@ class NRFA:
         self.col_labels = self.inp.columns
 
         # export 
-        self.inp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp_merged.csv')
-        self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp_merged.csv', header=True)
+        self.inp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp.csv')
+        self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp.csv', header=True)
     
 
     def merge_timelag_inps_subset(self, n_t_xs, src='MO'):
         """
         Timelag *n_t_xs most important inps based on [XGB GAIN], overwrites 
-        .._merged_inp & .._merged_out files. Exports level2 data.
+        .._merged_inp & .._merged_out files. Reads level1 data, exports level2
+        inp/exp data. 
 
         Parameters
         ----------
@@ -756,14 +776,14 @@ class NRFA:
         self.col_labels = self.inp.columns
 
         # export 
-        self.inp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp_merged.csv')
-        self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp_merged.csv', header=True)
+        self.inp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp.csv')
+        self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp.csv', header=True)
 
 
     def scale_split_traintest(self, n_traintest_split=400, ratio_calval_split=.25, scaler_id=-1):
         """
         Load data if not done while timelagging, standardise inputs, set 
-        inp/exp and separate cal/val subsets.
+        inp/exp and separate cal/val subsets. Exports scalers (opt).
 
         Parameters
         ----------
@@ -777,7 +797,7 @@ class NRFA:
 
         """
         if not self.data_loaded:
-            data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'.csv',
+            data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
                                index_col=0, header=0)
     
             self.exp = data[self.station_id]
@@ -816,7 +836,7 @@ class NRFA:
         K fold crossval + standardisation.
         
         Load data if not done while timelagging, standardise inputs, set 
-        inp/exp and separate cal/val subsets.
+        inp/exp and separate cal/val subsets. Exports scalers (opt).
 
         Parameters
         ----------
@@ -829,7 +849,7 @@ class NRFA:
 
         """
         if not self.data_loaded:
-            data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'.csv',
+            data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
                                index_col=0, header=0)
     
             self.exp = data[self.station_id]

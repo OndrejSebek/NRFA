@@ -10,6 +10,8 @@ import joblib
 import matplotlib.pyplot as plt
 from scipy.stats import t
 
+import QC_utils as qc_u
+
 
 class Kernets:
     def __init__(self, station, n_nets):
@@ -56,13 +58,14 @@ class Kernets:
         #             self.xgb_reg.load_model('_models/'+self.station_id+'/'+file)
         #             print(file, 'loaded (xgb)')
             
-        self.inps = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp_merged.csv', index_col=0)
-        self.obs = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp_merged.csv', index_col=0)#.values)
+        self.inp = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp.csv', index_col=0)
+        self.exp = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp.csv', index_col=0)#.values)
 
 
     def get_pred(self, bounds, conf=0.95):
         """
-        Get prediction with all subsetted (__init__) NNs for given period.
+        Get prediction (self.m, self.std) with all subsetted (__init__) NNs 
+        for given period.
 
         Parameters
         ----------
@@ -72,25 +75,25 @@ class Kernets:
             confidence level value, the default is 0.95
             
         """
-        ndim = self.inps.ndim
-        if self.inps.shape[ndim-1] != self.n_inps[0]:
+        ndim = self.inp.ndim
+        if self.inp.shape[ndim-1] != self.n_inps[0]:
             print('invalid n inps')
-            print(self.inps.shape[ndim-1], '/', self.n_inps[0])
+            print(self.inp.shape[ndim-1], '/', self.n_inps[0])
             return
         
         if len([bounds]) > 1:
-            self.inps = self.inps[bounds[0]:bounds[1]]
-            self.obs = self.obs[bounds[0]:bounds[1]]
+            self.inp = self.inp[bounds[0]:bounds[1]]
+            self.exp = self.exp[bounds[0]:bounds[1]]
             
         # keras nets pred
         self.pred = []        
         for i, net in enumerate(self.nets):
-            inps = self.scalers[i].transform(self.inps)
+            inps = self.scalers[i].transform(self.inp)
             self.pred.append(net.predict(inps))
         
         # xgb pred
         #scaler = joblib.load('_models/'+self.station_id+'/scaler99.pkl')
-        #inps = scaler.transform(self.inps)
+        #inps = scaler.transform(self.inp)
         #self.pred.append(self.xgb_reg.predict(inps).reshape(-1, 1))
         
         # comb
@@ -126,7 +129,7 @@ class Kernets:
         #     self.kdes.append(gaussian_kde(i, bw_method=(.5/self.pred.std(ddof=1))))
     
     
-    def save_pred(self):
+    def save_pred_merged(self):
         """
         Export modelled level3 timeseries.
         
@@ -135,16 +138,19 @@ class Kernets:
         if not os.path.exists('data/level3/'+self.station_id):
             os.mkdir('data/level3/'+self.station_id)
         
-        self.m = pd.DataFrame(self.m, index=self.obs.index, columns=['nn_m'])
-        self.std = pd.DataFrame(self.std, index=self.obs.index, columns=['nn_std'])
+        qc = pd.read_csv('data/level3/'+self.station_id+'/'+self.station_id+'_qc.csv',
+                         index_col=0)
         
-        merged_out = pd.merge(self.obs, self.m,
+        self.m = pd.DataFrame(self.m, index=self.exp.index, columns=['nn_m'])
+        self.std = pd.DataFrame(self.std, index=self.exp.index, columns=['nn_std'])
+        
+        merged_out = pd.merge(qc, self.m,
                               left_index=True, right_index=True)
         merged_out = pd.merge(merged_out, self.std,
                               left_index=True, right_index=True)
         
         merged_out.to_csv('data/level3/'+self.station_id+'/'+self.station_id+'_merged.csv')
-        pd.DataFrame(self.pred, index=self.obs.index).to_csv('data/level3/'+self.station_id+'/'+self.station_id+'_mods.csv')
+        pd.DataFrame(self.pred, index=self.exp.index).to_csv('data/level3/'+self.station_id+'/'+self.station_id+'_mods.csv')
         
         # pd.DataFrame(self.pred).to_csv('data/level3/'+self.station_id+'/nn/x_nns.csv')
         # pd.DataFrame(self.m).to_csv('data/level3/'+self.station_id+'/nn/x_m.csv')
@@ -159,7 +165,7 @@ class Kernets:
 
         """
         self.exp_orig = pd.read_csv('data/level3/'+self.station_id+'/comp/'+self.station_id+'_orig.csv', index_col=0)
-        self.exp_orig = pd.merge(self.obs, self.exp_orig, left_index=True, right_index=True, how='outer')
+        self.exp_orig = pd.merge(self.exp, self.exp_orig, left_index=True, right_index=True, how='outer')
         self.exp_orig['orig'] = self.exp_orig['orig'].fillna(self.exp_orig[self.station_id])
         self.exp_orig = self.exp_orig.dropna()
         
@@ -184,10 +190,10 @@ class Kernets:
         """
         # flag vals *n_std stds away from mean and with *d_abs absolute distance (mby redundant)
         exp_v = np.concatenate(self.exp_orig.values)
-        #fl = (abs(self.m - self.obs) > n_std*abs(self.std)) & (abs(self.m - self.obs) > d_abs)    # use qcd exp - nn mod
+        #fl = (abs(self.m - self.exp) > n_std*abs(self.std)) & (abs(self.m - self.exp) > d_abs)    # use qcd exp - nn mod
         fl = (abs(self.m - self.exp_orig.values) > n_std*abs(self.std).values) & (abs(self.m.values - self.exp_orig.values) > d_abs)        # use preqc exp - nn mod
        
-        # self.flagged = self.obs.copy()
+        # self.flagged = self.exp.copy()
         self.flagged = self.exp_orig.values
         self.flagged[~fl] = np.nan
         
@@ -231,7 +237,7 @@ class Kernets:
         # mods for each x/10 nets
         # plt.figure(figsize=(8, 5), dpi=600)
         # plt.plot(self.pred)
-        # #plt.plot(self.obs.values)
+        # #plt.plot(self.exp.values)
         # plt.savefig('f.jpg')
         # plt.close()
         
@@ -241,7 +247,7 @@ class Kernets:
         plt.fill_between(range(len(self.low))[-n_dt:], self.low[-n_dt:], self.high[-n_dt:])
         plt.plot(range(len(self.low))[-n_dt:], self.flags_tr[-n_dt:], marker='x', markersize=8, c='red', linestyle='')
         #plt.plot(range(len(self.low))[-n_dt:], self.difs.values[-n_dt:], marker='+', markersize=8, c='red', linestyle='')
-        #plt.plot(self.obs.values)
+        #plt.plot(self.exp.values)
         plt.savefig('plots/'+self.station_id+'/comp/flags_kde_3cons.jpg')
         plt.close()
         
@@ -251,6 +257,6 @@ class Kernets:
         plt.fill_between(range(len(self.low))[-n_dt:], self.low[-n_dt:], self.high[-n_dt:])
         plt.plot(range(len(self.low))[-n_dt:], self.flagged[-n_dt:], marker='x', markersize=8, c='red', linestyle='')
         #plt.plot(range(len(self.low))[-n_dt:], self.difs.values[-n_dt:], marker='+', markersize=8, c='red', linestyle='')
-        #plt.plot(self.obs.values)
+        #plt.plot(self.exp.values)
         plt.savefig('plots/'+self.station_id+'/comp/flags_kde.jpg')
         plt.close()

@@ -39,7 +39,7 @@ for st_id in IDS:
     qc_u.fetch_NRFA_local_2019(st_id)
     #x.fetch_NRFA()
 
-    x.fetch_agg_EA()
+    # x.fetch_agg_EA()
     x.fetch_MO()
 
     ''' ____________________________ xgb ________________________________ '''
@@ -87,12 +87,12 @@ for st_id in IDS:
 for st_id in IDS:
     z = knets.Kernets(st_id, 10)
     
-    z.get_pred(bounds=0, conf=.95)
-    z.save_pred()
-    
     # preqc/qc files
     qc_u.fetch_preqc_qc(st_id)
-    mrgd = qc_u.merge_preqc_qc_nn(st_id)
+
+    # preds
+    z.get_pred(bounds=0, conf=.95)
+    z.save_pred_merged()
     
     # z.get_orig_exp()
     # z.find_outliers() 

@@ -13,7 +13,7 @@ import NRFA_v3 as nrfa
 
 def fetch_NRFA_local_2019(station_id):
     """ 
-    Fetch local NRFA data files and create level1 data.
+    Fetch local NRFA data files and export level1 data.
 
     Parameters
     ----------
@@ -68,7 +68,7 @@ def fetch_NRFA_local_2019(station_id):
 
 def fetch_preqc_qc(station_id):
     """
-    Fetch original (preQC) and corrected (postQC) timeseries, export to level3
+    Fetch original (preQC) and corrected (postQC) timeseries. Exports level3
     data.
 
     Parameters
@@ -77,64 +77,30 @@ def fetch_preqc_qc(station_id):
         NRFA station ID
         
     """
-    y1 = pd.read_csv('data/level1/'+str(station_id)+'/'+str(station_id)+'_NRFA.csv',
-                     index_col=0)[[str(station_id)]]
+    qc_corr = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts.csv', index_col=1)
+    qc_corr = qc_corr[qc_corr['STATION'] == station_id][['FLOW_VALUES']]
+    qc_corr.index = pd.to_datetime(qc_corr.index, format='%Y-%m-%d %H:%M:%S').normalize()
 
-    y2 = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts.csv', index_col=1)
-    y2 = y2[y2['STATION'] == station_id][['FLOW_VALUES']]
-    y2.index = pd.to_datetime(y2.index, format='%Y-%m-%d %H:%M:%S').normalize()
-
-
-    mrgd = pd.merge(y1, y2, left_index=True, right_index=True)
-    
-    mrgd['orig'] = mrgd['FLOW_VALUES'].apply(get_orig)
-    mrgd['new'] = mrgd['FLOW_VALUES'].apply(get_new)
+    # get orig(preqc)
+    qc_corr['orig'] = qc_corr['FLOW_VALUES'].apply(get_orig)
 
     # change exp to pre-audit
-    exp_o = pd.read_csv('data/level2/'+str(station_id)+'/'+str(station_id)+'_exp_merged.csv',
+    exp_o = pd.read_csv('data/level2/'+str(station_id)+'/'+str(station_id)+'_exp.csv',
                         index_col=0)
     
-    mrgd_exp = pd.merge(exp_o, mrgd[['orig']],
-                        left_index=True, right_index=True)
+    merged = pd.merge(exp_o, qc_corr[['orig']],
+                      left_index=True, right_index=True,
+                      how='outer')
     
-    mrgd_exp.loc[mrgd_exp['orig'] == 'nan', ['orig']] = np.nan
-    mrgd_exp['orig'] = mrgd_exp['orig'].fillna(mrgd_exp[str(station_id)]).astype(float)
+    merged.loc[merged['orig'] == 'nan', ['orig']] = np.nan
+    merged['orig'] = merged['orig'].fillna(merged[str(station_id)]).astype(float)
+    merged = merged.dropna()
     
     # export preqc/qcd
     if not os.path.exists('data/level3/'+str(station_id)+'/comp'):
         os.mkdir('data/level3/'+str(station_id)+'/comp')
 
-    mrgd_exp[['orig']].to_csv('data/level3/'+str(station_id)+'/comp/'+str(station_id)+'_orig.csv')
-    mrgd_exp[[str(station_id)]].to_csv('data/level3/'+str(station_id)+'/comp/'+str(station_id)+'_qcd.csv')
-
-
-def merge_preqc_qc_nn(station_id):
-    """
-    Calculate and export preQC & postQC dataframe.
-
-    Parameters
-    ----------
-    station_id : int/string
-        NRFA station ID
-
-    Returns
-    -------
-    out : pd.DataFrame
-        merged preQC & postQC df
-
-    """
-    # read qcd data
-    mrgd = pd.read_csv('data/level3/'+str(station_id)+'/'+str(station_id)+'_merged.csv',
-                       index_col=0)
-    # read pre-qc data
-    obs_orig = pd.read_csv('data/level3/'+str(station_id)+'/comp/'+str(station_id)+'_orig.csv', index_col=0)
-
-    # merge and return
-    out = pd.merge(mrgd, obs_orig, left_index=True, right_index=True, how='outer')
-    out['orig'] = out['orig'].fillna(out[str(station_id)])
-    
-    out.to_csv('data/level3/'+str(station_id)+'/comp/'+str(station_id)+'_merged.csv')
-    return out
+    merged.to_csv('data/level3/'+str(station_id)+'/'+str(station_id)+'_qc.csv')
 
 
 def get_metrics(station_id, mrgd_orig, n_dt):
