@@ -90,16 +90,13 @@ class NRFA:
         self.cal_dataset = None
         self.val_dataset = None
         
-        self.RMSE = None
+        self.RMSE_df = None
         self.epoch = 0
         
+        self.test_split = 0
         self.y_mod_cal = None
-        self.rmse_cal = None
-        self.nrmse_cal = None
-        
         self.y_mod_val = None
-        self.rmse_val = None
-        self.nrmse_val = None
+        self.y_mod_test = None
         
         self.xgb_reg = None        
         self.xgb_feature_imps = []
@@ -796,6 +793,8 @@ class NRFA:
             ID for exported scaler, -1 to disable. The default is -1.
 
         """
+        self.test_split = 1 if n_traintest_split > 0 else 0
+
         if not self.data_loaded:
             data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
                                index_col=0, header=0)
@@ -807,7 +806,7 @@ class NRFA:
         scaler_inp = preprocessing.StandardScaler()
         x = scaler_inp.fit_transform(self.inp)
         y = self.exp.copy()
-            
+        
         # export scaler
         if scaler_id != -1:
             if not os.path.exists('_models/'+self.station_id):
@@ -848,6 +847,8 @@ class NRFA:
             ID for exported scaler, -1 to disable. The default is -1.
 
         """
+        self.test_split = 0
+
         if not self.data_loaded:
             data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
                                index_col=0, header=0)
@@ -936,15 +937,11 @@ class NRFA:
         
         # compile
         self.model.compile(optimizer=tf.keras.optimizers.Adam(lr),
-              loss=['mse'],
-              metrics=['RootMeanSquaredError'])  
-        
-        # RMSE df
-        self.RMSE = pd.DataFrame(columns=['nRMSE_cal', 'nRMSE_val', 'rows', 'cols'])
-        self.epoch = 0
+                           loss=['mse'],
+                           metrics=['RootMeanSquaredError'])  
     
 
-    def keras_fit(self, ep):
+    def keras_fit(self, ep=10000):
         """
         Fit (train) model on inp/exp datasets and save RMSE score for the
         current run.
@@ -952,31 +949,20 @@ class NRFA:
         Parameters
         ----------
         ep : int
-            nr. of epochs for training
+            nr. of epochs for training. The default is 10000.
 
         """
         self.history = self.model.fit(self.cal_dataset, epochs=ep,
                                       validation_data=self.val_dataset, 
                                       callbacks=[self.cb_es, self.cb_rlr],
                                       verbose=1)
- 
-        # cal/cal period (batch_size ~ memory usage while prediction)
+      
+        # mods (batch_size ~ memory usage)  
         self.y_mod_cal = self.model.predict(self.x_cal, batch_size=32)[:, 0]
-        self.rmse_cal = sqrt(mean_squared_error(self.y_cal, self.y_mod_cal))        
-        self.nrmse_cal = self.rmse_cal/self.y_mean
-
-        # val/val period 
         self.y_mod_val = self.model.predict(self.x_val, batch_size=32)[:, 0]
-        self.rmse_val = sqrt(mean_squared_error(self.y_val, self.y_mod_val))
-        self.nrmse_val = self.rmse_val/self.y_mean
         
-        # RMSE table
-        self.epoch += ep
-        self.RMSE = self.RMSE.append({'nRMSE_cal': self.nrmse_cal,
-                                      'nRMSE_val': self.nrmse_val,
-                                      'rows': self.y_cal.shape[0]+self.y_val.shape[0], 
-                                      'cols': self.x_cal.shape[1]}, ignore_index=True)
-
+        if self.test_split:
+            self.y_mod_test = self.model.predict(self.x_test, batch_size=32)[:, 0]
 
     def keras_plots(self):
         """
@@ -1032,6 +1018,7 @@ class NRFA:
         # fit
         x_cal = pd.DataFrame(self.x_cal, columns = self.col_labels)
         x_val = pd.DataFrame(self.x_val, columns = self.col_labels)
+        x_test = pd.DataFrame(self.x_test, columns = self.col_labels)
         
         self.xgb_reg.fit(x_cal, self.y_cal)
         
@@ -1043,23 +1030,14 @@ class NRFA:
         self.xgb_feature_imps.to_csv('_model_inps/'+self.station_id+'.csv',
                                      index=False)
         
-        # cal period 
+        # mods
         self.y_mod_cal = self.xgb_reg.predict(x_cal)
-        rmse_cal = sqrt(mean_squared_error(self.y_cal.values, self.y_mod_cal))        
-        nrmse_cal = rmse_cal/self.y_mean
-        
-        # val period 
         self.y_mod_val = self.xgb_reg.predict(x_val)
-        rmse_val = sqrt(mean_squared_error(self.y_val.values, self.y_mod_val))
-        nrmse_val = rmse_val/self.y_mean
         
-        # RMSE df
-        self.RMSE = pd.DataFrame({'nRMSE_cal': nrmse_cal,
-                                  'nRMSE_val': nrmse_val,
-                                  'rows': self.y_cal.shape[0]+self.y_val.shape[0],
-                                  'cols': x_cal.shape[1]}, index=[0])
+        if self.test_split:
+            self.y_mod_test = self.xgb_reg.predict(x_test)
+        
       
-        
     def xgb_plots(self):
         """
         Export XGB ts/sc/tree plots.
@@ -1157,15 +1135,19 @@ class NRFA:
         print('nearby EA gauges:', self.nearby_EA, '\n')
         print('present on API (NHA ID):', self.nearby_NHA, '\n')
 
-
+    ''' ________________________ / helpers _______________________________ '''
+    
+    
+    ''' ________________________ FIT METRICS _____________________________ '''
+    
     def NSE(self):
         """
         Calculate NSE for cal and val periods (self.y_mod_cal, self.y_mod_val).
 
         Returns
         -------
-        list
-            [NSE_cal, NSE_val]
+        pd.DataFrame()
+            NSE df with 2/3 fit vals and n_total rows & cols
 
         """
         NSE_cal = 1 - ( ((self.y_cal-self.y_mod_cal)*(self.y_cal-self.y_mod_cal)).sum()
@@ -1174,8 +1156,60 @@ class NRFA:
         
         NSE_val = 1 - ( ((self.y_val-self.y_mod_val)*(self.y_val-self.y_mod_val)).sum()
                        /((self.y_val-self.y_val.mean())*(self.y_val-self.y_val.mean())).sum()
-                       )   
-  
-        return [NSE_cal, NSE_val]
+                       )
+        
+        if self.test_split:
+            NSE_test = 1 - ( ((self.y_test-self.y_mod_test)*(self.y_test-self.y_mod_test)).sum()
+                            /((self.y_test-self.y_test.mean())*(self.y_test-self.y_test.mean())).sum()
+                            )
+            
+        if self.test_split:
+            self.NSE_df = pd.DataFrame({'NSE_cal': NSE_cal,
+                                        'NSE_val': NSE_val,
+                                        'NSE_test': NSE_test,
+                                        'rows': self.y_cal.shape[0]+self.y_val.shape[0]+self.y_test.shape[0],
+                                        'cols': self.x_cal.shape[1]}, index=[0]) 
+        else:
+            self.NSE_df = pd.DataFrame({'NSE_cal': NSE_cal,
+                                        'NSE_val': NSE_val,
+                                        'rows': self.y_cal.shape[0]+self.y_val.shape[0],
+                                        'cols': self.x_cal.shape[1]}, index=[0]) 
+            
+        return self.NSE_df
+    
+    
+    def RMSE(self):
+        """
+        Calculate N/RMSE for cal and val (+test) periods 
+        (self.y_mod_cal, self.y_mod_val, self.y_mod_test).
 
-    ''' ________________________ / helpers _______________________________ '''
+        Returns
+        -------
+        pd.DataFrame()
+            N/RMSE df with 2/3 fit vals and n_total rows & cols
+
+        """
+        rmse_cal = sqrt(mean_squared_error(self.y_cal.values, self.y_mod_cal))        
+        nrmse_cal = rmse_cal/self.y_mean 
+        
+        rmse_val = sqrt(mean_squared_error(self.y_val.values, self.y_mod_val))
+        nrmse_val = rmse_val/self.y_mean 
+        
+        if self.test_split:
+            rmse_test = sqrt(mean_squared_error(self.y_test.values, self.y_mod_test))
+            nrmse_test = rmse_test/self.y_mean 
+        
+            self.RMSE_df = pd.DataFrame({'nRMSE_cal': nrmse_cal,
+                                         'nRMSE_val': nrmse_val,
+                                         'nRMSE_test': nrmse_test,
+                                         'rows': self.y_cal.shape[0]+self.y_val.shape[0]+self.y_test.shape[0],
+                                         'cols': self.x_cal.shape[1]}, index=[0])
+        else:
+            self.RMSE_df = pd.DataFrame({'nRMSE_cal': nrmse_cal,
+                                         'nRMSE_val': nrmse_val,
+                                         'rows': self.y_cal.shape[0]+self.y_val.shape[0],
+                                         'cols': self.x_cal.shape[1]}, index=[0])  
+        
+        return self.RMSE_df
+
+    ''' _______________________ / FIT METRICS ____________________________ '''

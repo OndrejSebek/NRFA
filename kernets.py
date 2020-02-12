@@ -62,7 +62,7 @@ class Kernets:
         self.exp = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp.csv', index_col=0)#.values)
 
 
-    def get_pred(self, bounds, conf=0.95):
+    def get_mod(self, bounds, conf=0.95):
         """
         Get prediction (self.m, self.std) with all subsetted (__init__) NNs 
         for given period.
@@ -129,7 +129,7 @@ class Kernets:
         #     self.kdes.append(gaussian_kde(i, bw_method=(.5/self.pred.std(ddof=1))))
     
     
-    def save_pred_merged(self):
+    def save_mod_merged(self):
         """
         Export modelled level3 timeseries.
         
@@ -161,7 +161,7 @@ class Kernets:
     
     def get_orig_exp(self):
         """
-        Get (@self.exp_orig) original (preQC) timeseries.
+        REDUNDANT: Get (@self.exp_orig) original (preQC) timeseries.
 
         """
         self.exp_orig = pd.read_csv('data/level3/'+self.station_id+'/comp/'+self.station_id+'_orig.csv', index_col=0)
@@ -178,7 +178,7 @@ class Kernets:
     
     def find_outliers(self, n_std=5, d_abs=0):
         """
-        Z-score + ABS outlier flagging.
+        REDUNDANT: Z-score + ABS outlier flagging.
 
         Parameters
         ----------
@@ -220,7 +220,7 @@ class Kernets:
                 
     def plots(self, n_dt):
         """
-        Outlier flagging plots
+        REDUNDANT: Outlier flagging plots
 
         Parameters
         ----------

@@ -24,7 +24,7 @@ for st_id in IDS:
     
     # init stations
     x = nrfa.NRFA(st_id)
-    x.set_ids_radius(50, 50, 50)
+    x.set_ids_radius(20, 20, 20)
     
     # adjust to missing gdf-live data
     x.update_ids_local(empty_NHA=0)
@@ -53,7 +53,7 @@ for st_id in IDS:
 
     x.xgb_model_fit()
     x.xgb_plots()
-    x.RMSE.to_csv('RMSEs/xgb_RMSE_'+str(st_id)+'.csv')
+    x.RMSE().to_csv('RMSEs/xgb_RMSE_'+str(st_id)+'.csv')
     x.xgb_reg.save_model('_models/'+str(st_id)+'/xgb.model')
 
 
@@ -71,12 +71,17 @@ for st_id in IDS:
         x.keras_fit(10000)
         
         x.model.save('_models/'+str(st_id)+'/mod'+str(i)+'.h5')
-        big_RMSE.append(x.RMSE.values)
+        big_RMSE.append(x.RMSE().values)
         
-        print(i, '/19: ', x.RMSE.values)
+        print(i, '/19: ', x.RMSE().values)
         
     y = nrfa.pd.DataFrame(nrfa.np.concatenate(big_RMSE)).drop_duplicates()
-    y.columns = ['cal', 'val', 'rows', 'cols']
+    
+    if not x.test_split:
+        y.columns = ['cal', 'val', 'rows', 'cols']
+    else:
+        y.columns = ['cal', 'val', 'test', 'rows', 'cols']
+    
     y.to_csv('RMSEs/keras_RMSE_'+str(st_id)+'.csv')
     
     x.keras_plots()
@@ -91,8 +96,8 @@ for st_id in IDS:
     qc_u.fetch_preqc_qc(st_id)
 
     # preds
-    z.get_pred(bounds=0, conf=.95)
-    z.save_pred_merged()
+    z.get_mod(bounds=0, conf=.95)
+    z.save_mod_merged()
     
     # z.get_orig_exp()
     # z.find_outliers() 

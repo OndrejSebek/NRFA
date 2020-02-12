@@ -97,9 +97,6 @@ def fetch_preqc_qc(station_id):
     merged = merged.dropna()
     
     # export preqc/qcd
-    if not os.path.exists('data/level3/'+str(station_id)+'/comp'):
-        os.mkdir('data/level3/'+str(station_id)+'/comp')
-
     merged.to_csv('data/level3/'+str(station_id)+'/'+str(station_id)+'_qc.csv')
 
 
