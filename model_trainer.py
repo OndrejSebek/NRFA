@@ -49,7 +49,9 @@ for st_id in IDS:
     # level2
     x.merge_inps(ratio=.95)
     x.timelag_inps(5, 'all', 'MO')
-    x.scale_split_traintest() 
+    x.scale_split_traintest(n_traintest_split=0,
+                            ratio_calval_split=.25,
+                            scaler_id=-1) 
 
     x.xgb_model_fit()
     x.xgb_plots()
@@ -60,7 +62,7 @@ for st_id in IDS:
     ''' __________________________ keras ________________________________ '''
     
     # subset based on XGB feature importance (gain)
-    x.merge_timelag_inps_subset(30)
+    x.merge_timelag_inps_subset(30, 'MO')
 
     big_RMSE = []
     for i in range(20):

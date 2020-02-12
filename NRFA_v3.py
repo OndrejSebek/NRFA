@@ -79,16 +79,16 @@ class NRFA:
         
         self.y_mean = None
                 
-        self.y_mod_cal = None
-        self.y_mod_val = None
-        self.y_mod_test = None
+        self.y_mod_cal = []
+        self.y_mod_val = []
+        self.y_mod_test = []
         
         self.kf = None
         self.kfold_indices_cal = []
         self.kfold_indices_val = []
         
         self.model = None
-        self.history = None
+        self.history = []
         
         self.cb_es = None
         self.cb_rlr = None
@@ -96,8 +96,8 @@ class NRFA:
         self.cal_dataset = None
         self.val_dataset = None
         
-        self.RMSE_df = None
-        self.NSE_df = None
+        self.RMSE_df = []
+        self.NSE_df = []
         # self.epoch = 0
         
         self.xgb_reg = None        
@@ -786,14 +786,15 @@ class NRFA:
         ----------
         n_traintest_split : int, optional
             train/test split (last *n_traintest_split data points -> test).
-            The default is 400.
+            The default is 400. Negative values split on shuffled df. 0 for
+            no split (only cal/val).
         ratio_calval_split : float, optional
             cal/val split ratio (shuffled). The default is .25.
         scaler_id : int, optional
             ID for exported scaler, -1 to disable. The default is -1.
 
         """
-        self.test_split = True if n_traintest_split > 0 else False
+        self.test_split = True if n_traintest_split != 0 else False
 
         if not self.data_loaded:
             data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
@@ -813,13 +814,30 @@ class NRFA:
                 os.mkdir('_models/'+self.station_id)
                 
             joblib.dump(scaler_inp, '_models/'+self.station_id+'/scaler'+str(scaler_id)+'.pkl')
-
+            
         # train test splits
-        self.x_train = x[:-n_traintest_split]
-        self.y_train = y.iloc[:-n_traintest_split]
-        
-        self.x_test = x[-n_traintest_split:]
-        self.y_test = y.iloc[-n_traintest_split:]
+        if self.test_split:
+            if n_traintest_split > 0:
+                # split on last *n_traintest_split data points, non-shuffled
+                self.x_train = x[:-n_traintest_split]
+                self.y_train = y.iloc[:-n_traintest_split]
+            
+                self.x_test = x[-n_traintest_split:]
+                self.y_test = y.iloc[-n_traintest_split:]
+            else:
+                # do shuffled train/test split (to validate NN ens against)
+                ratio_traintest_split = (n_traintest_split*-1)/len(y)
+                self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(x, y, 
+                                                                                        test_size=ratio_traintest_split, 
+                                                                                        random_state=None,
+                                                                                        shuffle=True)
+        else:
+            # skip train/test split (do only cal/val)
+            self.x_train = x
+            self.y_train = y
+            
+            self.x_test = []
+            self.y_test = []
         
         # cal/val splits
         self.x_cal, self.x_val, self.y_cal, self.y_val = train_test_split(self.x_train, self.y_train, 
@@ -828,7 +846,7 @@ class NRFA:
                                                                           shuffle=True)
         
         self.y_mean = y.mean()
-        
+        print(len(self.x_cal), len(self.x_val), len(self.x_test))
         
     def scale_split_kfolds(self, cur_fold, n_folds, scaler_id=-1):
         """

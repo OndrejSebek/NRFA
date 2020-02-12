@@ -10,15 +10,43 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 ''' xgbsearch '''   
 
 def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, lr=0.0001, ep=10000):
+    """
+    Gridsearch for best NN parameters ~ fit. 
+    
+    I:      determines inp features, creates dataset to model
+    II:     fits XGB model - benchmark, feature importance (subsetting)
+    III:    trains an ensemble of NNs on the full and subsetted dataset
 
-    pars = [['station', 'range_opt', 'range_dist', 'inp_opt', 'rows', 'cols',
-            'nRMSE_cal_xgb', 'nRMSE_val_xgb', 'NSE_cal_xgb', 'NSE_val_xgb',
-            'rows_sub', 'cols_sub']
-            +runs*['nRMSE_cal_NN', 'nRMSE_val_NN', 'NSE_cal_NN', 'NSE_val_NN']]   
-    imps = pd.DataFrame()
-    
-    
+    Exports gridsearch_*station_id*.csv for each NRFA station.
+
+    Parameters
+    ----------
+    station_ids : list [int/str]
+        NRFA station IDs
+    range_opts : list [str]
+        input feature selection ['radius', 'updwn']
+    range_rad_m : list [int]
+        distance from target NRFA station
+    inp_opts : list [str]
+        input feature selection ['MO', 'NRFA_only']
+    xgb_sub_n : list [int]
+        input feature subsetting 
+    runs : int
+        nr. of NNs trained for each par combination
+    lr : float, optional
+        NN learning rate. The default is 0.0001.
+    ep : int, optional
+        Max nr. of NN training epochs. The default is 10000. (x early stopping)
+
+    """
     for station_id in station_ids:
+        # (re)set pars and imps
+        pars = [['station', 'range_opt', 'range_dist', 'inp_opt', 'rows', 'cols',
+                'nRMSE_cal_xgb', 'nRMSE_val_xgb', 'NSE_cal_xgb', 'NSE_val_xgb',
+                'rows_sub', 'cols_sub']
+                +runs*['nRMSE_cal_NN', 'nRMSE_val_NN', 'NSE_cal_NN', 'NSE_val_NN']]   
+        imps = pd.DataFrame()
+
         # init NRFA instance and fetch (NRFA, EA nad MO) ids
         x = nrfa.NRFA(station_id)
         
@@ -33,9 +61,8 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                 if range_opt == 'updwn':
                     x.set_ids_updwnstream(0)     
                 
-                # re-fetch for current set of inps
+                # re-fetch for current set of inps  
                 x.fetch_NRFA()
-                # x.fetch_agg_EA()
                 x.fetch_MO()
                 
                 # ____________________ level2 ___________________________
@@ -65,9 +92,8 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                     
                     # fit xgb for feature imps subsetting    
                     #
-                    x.scale_split_traintest()  
+                    x.scale_split_traintest(n_traintest_split=0)  
                     x.xgb_model_fit()
-    
     
                     for xgb_sub in ([-1]+xgb_sub_n):
                         # merge to feature importance dataframe
@@ -76,7 +102,6 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                             imps = x.xgb_feature_imps.iloc[:xgb_sub].copy()
                         else:
                             imps = pd.merge(imps, x.xgb_feature_imps.iloc[:xgb_sub],
-                                            # left_index=True, right_index=True,
                                             on='colname',
                                             how='outer')
                         # print(imps)
@@ -84,8 +109,8 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                         # append current pars
                         #
                         if xgb_sub == -1:
-                            xgb_NSE = x.NSE()
-                            xgb_RMSE = list(x.RMSE[['nRMSE_cal', 'nRMSE_val']].iloc[0])
+                            xgb_RMSE = list(x.RMSE()[['nRMSE_cal', 'nRMSE_val']].iloc[0])
+                            xgb_NSE = list(x.NSE()[['NSE_cal', 'NSE_val']].iloc[0])
                             xgb_rowcol = [(len(x.x_cal)+len(x.x_val)), len(x.x_cal[0])]
                             
                         c_pars = ([station_id, range_opt, range_radius, inp_opt]
@@ -102,7 +127,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
     
                         
                         # keras models for each run
-                        # (+ cal/val split and stand)
+                        # (+ kfold cal/val split and stand)
                         #
                         for run in range(runs):
                             # x.set_scale_inps(-1)  
@@ -113,44 +138,44 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                             
                             # x.model.save('_models/'+str(station_id)+'/mod'+str(run)+'.h5')
                             
-                            # x.xgb_model_fit()
-                            
                             # append fit stats (nRMSE + NSE)
                             # 
-                            c_pars.extend(list(x.RMSE[['nRMSE_cal', 'nRMSE_val']].iloc[0])+x.NSE())
+                            c_pars.extend(list(x.RMSE()[['nRMSE_cal', 'nRMSE_val']].iloc[0])
+                                          +list(x.NSE()[['NSE_cal', 'NSE_val']].iloc[0]))
                             print('\n', x.station_id, range_opt, range_radius, 
-                                  inp_opt, xgb_sub, run, x.NSE(), '\n')
+                                  inp_opt, xgb_sub, run,
+                                  list(x.NSE()[['NSE_cal', 'NSE_val']].iloc[0]),
+                                  '\n')
                             
                         # append current set of pars to pars DF
                         #
                         pars.append(c_pars)
                 
-    # OUT
-    #
-    imps.columns = ['var']+list(range(imps.shape[1]-1))
-    pars = pd.DataFrame(pars).T
-    pars.columns = ['var']+list(range(imps.shape[1]-1))
-    # print(imps)
-    # print(pars)
+        # OUT
+        #
+        imps.columns = ['var']+list(range(imps.shape[1]-1))
+        pars = pd.DataFrame(pars).T
+        pars.columns = ['var']+list(range(imps.shape[1]-1))
+        # print(imps)
+        # print(pars)
+        
+        # calc average fit from kfold
+        out = imps.append(pars, ignore_index=True)     
+        
+        # print(out.columns)
+        # print(out)
+        
+        avg_metrics = pd.DataFrame()
+        for metric in ['nRMSE_cal_NN', 'nRMSE_val_NN', 'NSE_cal_NN', 'NSE_val_NN']:
+            avg_metrics = avg_metrics.append(out[out['var'] == metric].drop('var', axis=1).astype(float).mean(), ignore_index=True)
+        
+        avg_metrics = pd.concat([pd.DataFrame(['nRMSE_cal_NN_avg', 'nRMSE_val_NN_avg', 'NSE_cal_NN_avg', 'NSE_val_NN_avg']), avg_metrics],
+                                axis=1, ignore_index=True)
+        
+        avg_metrics.columns = ['var']+list(range(pars.shape[1]-1))
     
-    # calc average fit from kfold
-    #
-    out = imps.append(pars, ignore_index=True)     
-    
-    # print(out.columns)
-    # print(out)
-    
-    avg_metrics = pd.DataFrame()
-    for metric in ['nRMSE_cal_NN', 'nRMSE_val_NN', 'NSE_cal_NN', 'NSE_val_NN']:
-        avg_metrics = avg_metrics.append(out[out['var'] == metric].drop('var', axis=1).astype(float).mean(), ignore_index=True)
-    
-    avg_metrics = pd.concat([pd.DataFrame(['nRMSE_cal_NN_avg', 'nRMSE_val_NN_avg', 'NSE_cal_NN_avg', 'NSE_val_NN_avg']), avg_metrics],
-                            axis=1, ignore_index=True)
-    
-    avg_metrics.columns = ['var']+list(range(pars.shape[1]-1))
-
-    out = out.append(avg_metrics, ignore_index=True) 
-    out.to_csv('GS/xgbsearch.csv')
+        out = out.append(avg_metrics, ignore_index=True) 
+        out.to_csv('GS/xgbsearch'+str(station_id)+'.csv')
 
 ''' ______________________________________________________________________ '''
 
@@ -164,7 +189,7 @@ xgbsearch(['49006'],
           [20, 30, 40],
           5,
           lr=0.0001,
-          ep=10000)
+          ep=1)
 
 
 

@@ -116,9 +116,9 @@ def presentation_plot_fit_xgb():
         scaler_inp = joblib.load('_models/'+station+'/scaler99.pkl')
         
         # data
-        c_inp = pd.read_csv('data/level2/'+station+'/'+station+'_inp_merged.csv',
+        c_inp = pd.read_csv('data/level2/'+station+'/'+station+'_inp.csv',
                              index_col=0)
-        c_exp = pd.read_csv('data/level2/'+station+'/'+station+'_exp_merged.csv',
+        c_exp = pd.read_csv('data/level2/'+station+'/'+station+'_exp.csv',
                              index_col=0).values[:, 0]
         
         if len(c_exp) == 0:
@@ -152,9 +152,9 @@ def presentation_plot_fit_xgb_retrain():
             continue
         
         # data
-        c_inp = pd.read_csv('data/level2/'+station+'/'+station+'_inp_merged.csv',
+        c_inp = pd.read_csv('data/level2/'+station+'/'+station+'_inp.csv',
                              index_col=0)
-        c_exp = pd.read_csv('data/level2/'+station+'/'+station+'_exp_merged.csv',
+        c_exp = pd.read_csv('data/level2/'+station+'/'+station+'_exp.csv',
                              index_col=0).values[:, 0]
         
         if len(c_exp) == 0:
