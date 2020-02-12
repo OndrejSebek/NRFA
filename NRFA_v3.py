@@ -65,6 +65,8 @@ class NRFA:
         self.col_labels = []
         self.exp = []
         
+        self.test_split = False
+
         self.x_train = []
         self.y_train = []
         self.x_test = []
@@ -76,6 +78,10 @@ class NRFA:
         self.y_val = []
         
         self.y_mean = None
+                
+        self.y_mod_cal = None
+        self.y_mod_val = None
+        self.y_mod_test = None
         
         self.kf = None
         self.kfold_indices_cal = []
@@ -91,18 +97,14 @@ class NRFA:
         self.val_dataset = None
         
         self.RMSE_df = None
-        self.epoch = 0
-        
-        self.test_split = 0
-        self.y_mod_cal = None
-        self.y_mod_val = None
-        self.y_mod_test = None
+        self.NSE_df = None
+        # self.epoch = 0
         
         self.xgb_reg = None        
         self.xgb_feature_imps = []
         self.t_x_cats = []
     
-        # check if base station available 
+        # check if target station available (ID on API)
         self.root = 'https://nrfaapps.ceh.ac.uk/nrfa/ws/'
         web_service_stations = 'station-ids?format=json-object'
         
@@ -266,6 +268,7 @@ class NRFA:
         self.nearby_NRFA = list(sub_dt['related_station'].unique().astype(str))
         if self.station_id not in self.nearby_NRFA:
             self.nearby_NRFA.extend([self.station_id])
+    
     
     def update_ids_local(self, empty_NHA=0):
         """
@@ -669,7 +672,6 @@ class NRFA:
         self.t_x_cats = pd.DataFrame(t_x_cats, columns=['inp', 't_x']).sort_values('t_x')
         print(self.t_x_cats)
 
-
         # merge only subsetted inps:
         #   load level1 data from *src
         #   -> ¬data
@@ -699,7 +701,6 @@ class NRFA:
         data = data[self.t_x_cats['inp'].unique()]
         data = data.sort_index().dropna()
         
-        
         # GAPS:
         #
         td = pd.to_datetime(data.index[1:].values) - pd.to_datetime(data.index[:-1].values)
@@ -711,7 +712,6 @@ class NRFA:
         
         # add last DataFrame index
         td_indices = pdtd_.index.append(pd.Index([pdtd.index[-1]+1]))
-        
         
         # MERGE
         #
@@ -793,7 +793,7 @@ class NRFA:
             ID for exported scaler, -1 to disable. The default is -1.
 
         """
-        self.test_split = 1 if n_traintest_split > 0 else 0
+        self.test_split = True if n_traintest_split > 0 else False
 
         if not self.data_loaded:
             data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
@@ -847,7 +847,7 @@ class NRFA:
             ID for exported scaler, -1 to disable. The default is -1.
 
         """
-        self.test_split = 0
+        self.test_split = False
 
         if not self.data_loaded:
             data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
@@ -869,7 +869,6 @@ class NRFA:
                 
             joblib.dump(scaler_inp, '_models/'+self.station_id+'/scaler'+str(scaler_id)+'.pkl')
         
-        
         # set KFold indices if first epoch (first fold) 
         #
         if cur_fold == 0:
@@ -881,7 +880,6 @@ class NRFA:
                 # print("cal:", len(train_index), "val:", len(test_index))
                 self.kfold_indices_cal.append(train_index)
                 self.kfold_indices_val.append(test_index)
-                
         
         # set cal/val inp/exp
         self.x_cal = inp[self.kfold_indices_cal[cur_fold]]
@@ -939,7 +937,7 @@ class NRFA:
         self.model.compile(optimizer=tf.keras.optimizers.Adam(lr),
                            loss=['mse'],
                            metrics=['RootMeanSquaredError'])  
-    
+
 
     def keras_fit(self, ep=10000):
         """
@@ -963,6 +961,7 @@ class NRFA:
         
         if self.test_split:
             self.y_mod_test = self.model.predict(self.x_test, batch_size=32)[:, 0]
+
 
     def keras_plots(self):
         """
@@ -1142,7 +1141,8 @@ class NRFA:
     
     def NSE(self):
         """
-        Calculate NSE for cal and val periods (self.y_mod_cal, self.y_mod_val).
+        Calculate NSE for cal and val (+test) periods
+        (self.y_mod_cal, self.y_mod_val, self.y_mod_test).
 
         Returns
         -------

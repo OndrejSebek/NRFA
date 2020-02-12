@@ -159,6 +159,7 @@ def get_orig(x):
                 x_ = x_[:-1]        
     return x_
     
+
 def get_new(x):
     x_ = str(x)[-5:]
 
