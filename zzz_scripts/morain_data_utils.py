@@ -170,22 +170,35 @@ def MO_EA_match():
 
 
 
+''' _________________ morain data last datapoint _________________________ '''
 
+def morain_data_years():
+    """
+    Find date of last data point in MORAIN inp files. Exports plot for all 
+    stations. 
+    
+    Takes a while to pd.read_csv() 14k files.
+    
+    """
+    # adjust to os.getcwd()
+    path = '../data/morain_raw/data/'
+    ends = []
+    
+    for file in os.listdir(path):
+        ends.append([file, pd.read_csv(path+file, index_col=0).index[-1]])
 
+    ends = pd.DataFrame(ends)
+    
+    ends[0] = ends[0].apply(lambda x: x[:-4])
+    ends[1] = pd.to_datetime(ends[1])
 
+    ends.sort_values(1, inplace=True)
+    ends.reset_index(inplace=True)
 
+    ends[1].plot(figsize=(10, 4))
+    plt.savefig('morain_data.png')    
 
-
-
-
-
-
-
-
-
-
-
-
+    print(ends[ends[1]=='2019-12-31'].shape[0]/ends.shape[0])
 
 
 
