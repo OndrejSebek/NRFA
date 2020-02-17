@@ -846,7 +846,6 @@ class NRFA:
                                                                           shuffle=True)
         
         self.y_mean = y.mean()
-        print(len(self.x_cal), len(self.x_val), len(self.x_test))
         
     def scale_split_kfolds(self, cur_fold, n_folds, scaler_id=-1):
         """

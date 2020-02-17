@@ -86,9 +86,6 @@ def id_bk_hlpr(x):
     return x
 
 
-# plot_MO_EA()
-    
-
 # map EA api RG meta to MO
 #   selects closest station(/s) for each site
 #   and merges meta

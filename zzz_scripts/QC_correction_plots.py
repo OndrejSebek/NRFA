@@ -1,40 +1,55 @@
+import os
+
 import pandas as pd
 import numpy as np
-
-import os
 
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 
-path = 'data/level3/'
+path = '../data/level3/'
+
+meta_id_name = pd.read_csv('../meta/nrfa_station_info.csv')[['id', 'name']]
 
 
-# timeseries
-#
+''' ____________________________ TIMESERIES ______________________________ '''
+
 for i in os.listdir(path):
-    # print(i)
+    print(i)
+    if i == '49006':
+        continue
+    
     dt = pd.read_csv(path+i+'/comp/'+i+'_merged.csv', index_col=0)
+    dt_sub = dt[dt[i] != dt['orig']]
     
-    idx = dt[dt[i] != dt['orig']]
-    
-    if not idx.empty:
-        idx = idx.index[0]
-    
-        dt = dt[idx:]
+    if not dt_sub.empty:
+        # find name
+        name = str(i)+': '+meta_id_name[meta_id_name.id == int(i)].name.values[0]
+        idx = dt_sub.index[0]
         
+        # add 2 extra months (lazy)
+        if idx[6] == '0':
+            idx = idx[:5]+'08'+idx[7:]
+        else:
+            idx = idx[:6]+str(int(idx[6])-2)+idx[7:]
+
+        # subset data
+        dt_plot = dt[idx:]
+        
+        # plot
         plt.figure(figsize=(10, 4), dpi=300)
-        dt['orig'].plot(c='darkcyan', label='preQC')
-        dt[i].plot(c='black', label='QCd')
+        dt_plot['orig'].plot(c='darkcyan', label='preQC')
+        dt_plot[i].plot(c='black', label='QCd')
         plt.legend()
+        plt.title(name)
         plt.yscale("log")
-        plt.savefig('QC_plots/'+i+'.png')
+        plt.savefig('../QC_plots/'+i+'.png')
         plt.close()
-     
-        
-# map   
-#
+
+
+''' ______________________________ MAP ___________________________________ '''
+
 nrfa_meta = pd.read_csv('meta/NRFA_meta.csv')
 stations = pd.DataFrame(os.listdir(path), columns=['id'], dtype=int)
 stations = pd.merge(stations, nrfa_meta, 

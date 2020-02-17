@@ -6,8 +6,8 @@ import NRFA_v3 as nrfa
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
- 
-''' xgbsearch '''   
+
+''' __________________________ xgbsearch _________________________________ '''
 
 def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, lr=0.0001, ep=10000):
     """
@@ -17,7 +17,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
     II:     fits XGB model - benchmark, feature importance (subsetting)
     III:    trains an ensemble of NNs on the full and subsetted dataset
 
-    Exports gridsearch_*station_id*.csv for each NRFA station.
+    Exports fit metrics to gridsearch_*station_id*.csv for each NRFA station.
 
     Parameters
     ----------
@@ -189,7 +189,7 @@ xgbsearch(['49006'],
           [20, 30, 40],
           5,
           lr=0.0001,
-          ep=1)
+          ep=10000)
 
 
 
@@ -213,4 +213,3 @@ xgbsearch(['49006'],
             , 'updwn'
             
 '''
-
