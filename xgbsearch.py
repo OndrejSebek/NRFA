@@ -36,7 +36,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
     lr : float, optional
         NN learning rate. The default is 0.0001.
     ep : int, optional
-        Max nr. of NN training epochs. The default is 10000. (x early stopping)
+        NN training epoch threshold. The default is 10000. (x early stopping)
 
     """
     for station_id in station_ids:
@@ -77,7 +77,6 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                         print('skipping empty merged')
                         continue
                             
-                    
                     # timelag merged inps
                     # out: lvl2 inp/exp
                     x.timelag_inps(5, 'all', inp_opt)
@@ -91,23 +90,20 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                     # __________________ ML _____________________________
                     
                     # fit xgb for feature imps subsetting    
-                    #
                     x.scale_split_traintest(n_traintest_split=0)  
                     x.xgb_model_fit()
     
                     for xgb_sub in ([-1]+xgb_sub_n):
                         # merge to feature importance dataframe
-                        #
                         if imps.empty:
                             imps = x.xgb_feature_imps.iloc[:xgb_sub].copy()
                         else:
                             imps = pd.merge(imps, x.xgb_feature_imps.iloc[:xgb_sub],
                                             on='colname',
                                             how='outer')
-                        # print(imps)
                             
                         # append current pars
-                        #
+                        #   set vars if first
                         if xgb_sub == -1:
                             xgb_RMSE = list(x.RMSE()[['nRMSE_cal', 'nRMSE_val']].iloc[0])
                             xgb_NSE = list(x.NSE()[['NSE_cal', 'NSE_val']].iloc[0])
@@ -117,38 +113,31 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                                   + xgb_rowcol + xgb_RMSE + xgb_NSE)
     
                         # xgb inp subsetting
-                        #
                         if xgb_sub > 0:
                             x.merge_timelag_inps_subset(xgb_sub, 'MO')     
                         
                         # append total available n_rows for current subset
-                        #
                         c_pars.extend([x.inp.shape[0], x.inp.shape[1]])
     
-                        
                         # keras models for each run
-                        # (+ kfold cal/val split and stand)
-                        #
+                        #   (+ kfold cal/val split and stand)
                         for run in range(runs):
-                            # x.set_scale_inps(-1)  
                             x.scale_split_kfolds(run, runs)
                             
                             x.keras_model(lr)
                             x.keras_fit(ep)
                             
-                            # x.model.save('_models/'+str(station_id)+'/mod'+str(run)+'.h5')
-                            
                             # append fit stats (nRMSE + NSE)
-                            # 
                             c_pars.extend(list(x.RMSE()[['nRMSE_cal', 'nRMSE_val']].iloc[0])
                                           +list(x.NSE()[['NSE_cal', 'NSE_val']].iloc[0]))
+                            
+                            # console print pars
                             print('\n', x.station_id, range_opt, range_radius, 
                                   inp_opt, xgb_sub, run,
                                   list(x.NSE()[['NSE_cal', 'NSE_val']].iloc[0]),
                                   '\n')
                             
                         # append current set of pars to pars DF
-                        #
                         pars.append(c_pars)
                 
         # OUT

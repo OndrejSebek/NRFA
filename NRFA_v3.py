@@ -65,6 +65,8 @@ class NRFA:
         self.col_labels = []
         self.exp = []
         
+        self.scaler_inp = None
+        
         self.test_split = False
 
         self.x_train = []
@@ -777,7 +779,7 @@ class NRFA:
         self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp.csv', header=True)
 
 
-    def scale_split_traintest(self, n_traintest_split=400, ratio_calval_split=.25, scaler_id=-1):
+    def scale_split_traintest(self, n_traintest_split=400, ratio_calval_split=.25):
         """
         Load data if not done while timelagging, standardise inputs, set 
         inp/exp and separate cal/val subsets. Exports scalers (opt).
@@ -790,8 +792,6 @@ class NRFA:
             no split (only cal/val).
         ratio_calval_split : float, optional
             cal/val split ratio (shuffled). The default is .25.
-        scaler_id : int, optional
-            ID for exported scaler, -1 to disable. The default is -1.
 
         """
         self.test_split = True if n_traintest_split != 0 else False
@@ -804,17 +804,10 @@ class NRFA:
             self.inp = data.drop(self.station_id, axis=1)    
             
         # standardise inps to ~ 0 mean, 1 std
-        scaler_inp = preprocessing.StandardScaler()
-        x = scaler_inp.fit_transform(self.inp)
+        self.scaler_inp = preprocessing.StandardScaler()
+        x = self.scaler_inp.fit_transform(self.inp)
         y = self.exp.copy()
-        
-        # export scaler
-        if scaler_id != -1:
-            if not os.path.exists('_models/'+self.station_id):
-                os.mkdir('_models/'+self.station_id)
-                
-            joblib.dump(scaler_inp, '_models/'+self.station_id+'/scaler'+str(scaler_id)+'.pkl')
-            
+    
         # train test splits
         if self.test_split:
             if n_traintest_split > 0:
@@ -844,8 +837,8 @@ class NRFA:
                                                                           test_size=ratio_calval_split, 
                                                                           random_state=None,
                                                                           shuffle=True)
-        
         self.y_mean = y.mean()
+        
         
     def scale_split_kfolds(self, cur_fold, n_folds, scaler_id=-1):
         """
@@ -860,8 +853,6 @@ class NRFA:
             total nr. of folds
         cur_fold : int
             current fold
-        scaler_id : int, optional
-            ID for exported scaler, -1 to disable. The default is -1.
 
         """
         self.test_split = False
@@ -874,18 +865,10 @@ class NRFA:
             self.inp = data.drop(self.station_id, axis=1) 
             
         # standardise inps to ~ 0 mean, 1 std
-        scaler_inp = preprocessing.StandardScaler()
-        inp = scaler_inp.fit_transform(self.inp)
+        self.scaler_inp = preprocessing.StandardScaler()
+        inp = self.scaler_inp.fit_transform(self.inp)
         exp = self.exp.copy()
-            
 
-        # export scaler
-        if scaler_id != -1:
-            if not os.path.exists('_models/'+self.station_id):
-                os.mkdir('_models/'+self.station_id)
-                
-            joblib.dump(scaler_inp, '_models/'+self.station_id+'/scaler'+str(scaler_id)+'.pkl')
-        
         # set KFold indices if first epoch (first fold) 
         #
         if cur_fold == 0:
@@ -905,7 +888,28 @@ class NRFA:
         self.y_val = exp.iloc[self.kfold_indices_val[cur_fold]]
         
         self.y_mean = exp.mean()
+    
+    
+    def save_model(self, out_id):
+        """
+        Export keras model with inp feature scaler. 
+
+        Parameters
+        ----------
+        out_id : int, optional
+            ID for exported model & inp scaler, -1 to disable scaler save.
+
+        """
+        # export scaler
+        if out_id != -1:
+            if not os.path.exists('_models/'+self.station_id):
+                os.mkdir('_models/'+self.station_id)
+                
+            joblib.dump(self.scaler_inp, '_models/'+self.station_id+'/scaler'+str(out_id)+'.pkl')
         
+        # export model
+        self.model.save('_models/'+str(out_id)+'/mod'+str(out_id)+'.h5')
+            
     ''' ______________________ / PREPROCESSING ___________________________ '''   
         
     
