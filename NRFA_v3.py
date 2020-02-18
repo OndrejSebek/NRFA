@@ -840,7 +840,7 @@ class NRFA:
         self.y_mean = y.mean()
         
         
-    def scale_split_kfolds(self, cur_fold, n_folds, scaler_id=-1):
+    def scale_split_kfolds(self, cur_fold, n_folds):
         """
         K fold crossval + standardisation.
         
@@ -908,7 +908,7 @@ class NRFA:
             joblib.dump(self.scaler_inp, '_models/'+self.station_id+'/scaler'+str(out_id)+'.pkl')
         
         # export model
-        self.model.save('_models/'+str(out_id)+'/mod'+str(out_id)+'.h5')
+        self.model.save('_models/'+self.station_id+'/mod'+str(out_id)+'.h5')
             
     ''' ______________________ / PREPROCESSING ___________________________ '''   
         

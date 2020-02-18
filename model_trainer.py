@@ -23,76 +23,121 @@ IDS = [34018, 30002, 28044, 48001, 40017, 46005, 54017, 28015, 39056, 46014,
 
 IDS = [49006]
 
-for st_id in IDS:
+def model_trainer(IDS, dist,
+                  RG_src='MO', inp_ratio=.95,
+                  timelag_opt='all', timelag_t_x=5, 
+                  n_subset_inp=30, tt_split=400, cv_split=.25,
+                  n_models=20, lr=1e-4, ep=1e5):
+    """
+    Trains an ensemble of NN models.
     
-    # init stations
-    x = nrfa.NRFA(st_id)
-    x.set_ids_radius(20, 20, 20)
-    
-    # adjust to missing gdf-live data
-    x.update_ids_local(empty_NHA=0)
-    
-    if st_id == 35003:
-        x.nearby_gauges_NHA.remove('LALDERR')
+    I:      determines inp features, creates dataset to model
+    II:     fits XGB model - benchmark, feature importance (subsetting)
+    III:    trains an ensemble of NNs on the train split of the current 
+            dataset, 
             
-
-    ''' ___________________________ files _______________________________ '''
+    Exports trained NN and XGB models, inp data scalers, fit/error stats,
+    plots.
     
-    # level1
-    qc_u.fetch_NRFA_local_2019(st_id)
-    #x.fetch_NRFA()
+    Parameters
+    ----------
+    IDS : list [int/str]
+        NRFA station IDs.
+    dist : int
+        Distance from target NRFA station
+    RG_src : str, optional
+        Input rainfall data src. The default is 'MO'.
+    inp_ratio : float <0, 1>, optional
+        Data completeness station selection parameter. The default is .95.
+    timelag_opt : str, optional
+        Which features to timelag. The default is 'all'.
+    timelag_t_x : int, optional
+        Timelagging nr. of days. The default is 5.
+    n_subset_inp : int, optional
+        Subsetting nr. of most important inp features. The default is 30.
+    tt_split : int, optional
+        Nr. of days to leave out for test phase. The default is 400.
+    cv_split : float <0, 1>, optional
+        Ratio of cal/val split. The default is .25.
+    n_models : int, optional
+        Nr. of models to train. The default is 20.
+    lr : float, optional
+        NN earning rate. The default is 1e-4.
+    ep : int, optional
+        NN training epoch threshold. The default is 1e5. (x early stopping)
 
-    # x.fetch_agg_EA()
-    x.fetch_MO()
-
-    ''' ____________________________ xgb ________________________________ '''
-    
-    # do scaler separately (i=99)
-    
-    # level2
-    x.merge_inps(ratio=.95)
-    x.timelag_inps(5, 'all', 'MO')
-    x.scale_split_traintest(n_traintest_split=0,
-                            ratio_calval_split=.25,
-                            scaler_id=-1) 
-
-    x.xgb_model_fit()
-    x.xgb_plots()
-    x.RMSE().to_csv('RMSEs/xgb_RMSE_'+str(st_id)+'.csv')
-    x.xgb_reg.save_model('_models/'+str(st_id)+'/xgb.model')
-
-
-    ''' __________________________ keras ________________________________ '''
-    
-    # subset based on XGB feature importance (gain)
-    x.merge_timelag_inps_subset(30, 'MO')
-
-    big_RMSE = []
-    for i in range(20):
-        # cal/val split
-        x.scale_split_traintest(scaler_id=i) 
-    
-        x.keras_model(.0001)
-        x.keras_fit(10000)
+    """
+    for st_id in IDS:
         
-        x.model.save('_models/'+str(st_id)+'/mod'+str(i)+'.h5')
-        big_RMSE.append(x.RMSE().values)
+        # init stations
+        x = nrfa.NRFA(st_id)
+        x.set_ids_radius(dist, dist, dist)
         
-        print(i, '/19: ', x.RMSE().values)
+        # adjust to missing gdf-live data
+        x.update_ids_local(empty_NHA=0)
         
-    y = nrfa.pd.DataFrame(nrfa.np.concatenate(big_RMSE)).drop_duplicates()
+        if st_id == 35003:
+            x.nearby_gauges_NHA.remove('LALDERR')
     
-    if not x.test_split:
-        y.columns = ['cal', 'val', 'rows', 'cols']
-    else:
-        y.columns = ['cal', 'val', 'test', 'rows', 'cols']
+        ''' ___________________________ files ____________________________ '''
+        
+        # level1 data
+        qc_u.fetch_NRFA_local_2019(st_id)
+        #x.fetch_NRFA()
+        # x.fetch_agg_EA()
+        x.fetch_MO()
     
-    y.to_csv('RMSEs/keras_RMSE_'+str(st_id)+'.csv')
+        ''' ____________________________ xgb _____________________________ '''
+        
+        # level2 data
+        x.merge_inps(ratio=inp_ratio)
+        x.timelag_inps(timelag_t_x, timelag_opt, RG_src)
+        x.scale_split_traintest(n_traintest_split=0,
+                                ratio_calval_split=cv_split) 
     
-    x.keras_plots()
+        x.xgb_model_fit()
+        x.xgb_plots()
+        x.RMSE().to_csv('RMSEs/xgb_RMSE_'+str(st_id)+'.csv')
+        x.xgb_reg.save_model('_models/'+str(st_id)+'/xgb.model')
+    
+        ''' __________________________ keras _____________________________ '''
+        
+        # subset based on XGB feature importance (gain)
+        x.merge_timelag_inps_subset(n_subset_inp, RG_src)
+    
+        big_RMSE = []
+        for i in range(n_models):
+            # cal/val split
+            x.scale_split_traintest(n_traintest_split=tt_split,
+                                    ratio_calval_split=cv_split) 
+            
+            # train NNs
+            x.keras_model(lr)
+            x.keras_fit(ep)
+            
+            # export model & scaler, append current fit stats
+            x.save_model(i)
+            big_RMSE.append(x.RMSE().values)
+            
+            # console print
+            print(i, '/19: ', x.RMSE().values)
+        
+        # concat fit stats into pd.df & format
+        y = nrfa.pd.DataFrame(nrfa.np.concatenate(big_RMSE)).drop_duplicates()
+        
+        if not x.test_split:
+            y.columns = ['cal', 'val', 'rows', 'cols']
+        else:
+            y.columns = ['cal', 'val', 'test', 'rows', 'cols']
+        
+        # export fit & plots
+        y.to_csv('RMSEs/keras_RMSE_'+str(st_id)+'.csv')
+        x.keras_plots()
 
 
-''' ____________________________ KERNETS ________________________________ '''
+model_trainer([49006], 20, ep=1)
+
+''' _____________________________ KERNETS ________________________________ '''
 
 for st_id in IDS:
     z = knets.Kernets(st_id, 10)

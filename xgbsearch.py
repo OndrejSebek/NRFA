@@ -15,7 +15,8 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
     
     I:      determines inp features, creates dataset to model
     II:     fits XGB model - benchmark, feature importance (subsetting)
-    III:    trains an ensemble of NNs on the full and subsetted dataset
+    III:    trains NNs on 5fold crossval divided current dataset, determines 
+            fit (averaged across folds)
 
     Exports fit metrics to gridsearch_*station_id*.csv for each NRFA station.
 
@@ -28,7 +29,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
     range_rad_m : list [int]
         distance from target NRFA station
     inp_opts : list [str]
-        input feature selection ['MO', 'NRFA_only']
+        input rainfall data src ['MO', 'NRFA_only']
     xgb_sub_n : list [int]
         input feature subsetting 
     runs : int
