@@ -1,10 +1,17 @@
+import os
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 
+
+''' ______________________ MORAIN data + meta ____________________________ '''
 
 def extract_data():
+    """
+    Extract data for each station from the combined MORAIN file.
+
+    """
     morain = pd.read_csv('data/morain_raw/raw/morain.csv')
     
     for id_ in morain['ID'].unique():
@@ -16,6 +23,10 @@ def extract_data():
 
 
 def merge_data_meta():
+    """
+    Updated MORAIN meta file with easting, northing.
+
+    """
     morain = pd.read_csv('data/morain/raw/morain.csv')
     meta = pd.read_csv('meta/MORAIN_meta.csv')
     
@@ -25,11 +36,13 @@ def merge_data_meta():
     upd_meta.to_csv('meta/MORAIN_meta_upd.csv', index=False)
 
 
-
-
-
+''' ______________________ MO & EA plots (old) ___________________________ '''
 
 def plot_MO_EA_api():
+    """
+    Plot matching MO & EA gauges ~ API ID.
+    
+    """
     morain = pd.read_csv('meta/MORAIN_meta_upd.csv')
     morain['ID'] = morain['ID'].astype(str)
     
@@ -42,17 +55,23 @@ def plot_MO_EA_api():
     
     merged = pd.merge(morain, EA, left_on='ID', right_on='id', how='inner')
     
-    
     plt.figure(figsize=(12, 15), dpi=300)
-    plt.plot(morain['EASTING'].values, morain['NORTHING'].values, linestyle="", marker='x', c='red', label='MO')
-    plt.plot(EA['easting'].values, EA['northing'].values, linestyle="", c='blue', marker='+', label='EA')
-    plt.plot(merged['easting'].values, merged['northing'].values, linestyle="", c='green', marker='*', label='ids match')
+    plt.plot(morain['EASTING'].values, morain['NORTHING'].values,
+             linestyle="", marker='x', c='red', label='MO')
+    plt.plot(EA['easting'].values, EA['northing'].values,
+             linestyle="", c='blue', marker='+', label='EA')
+    plt.plot(merged['easting'].values, merged['northing'].values,
+             linestyle="", c='green', marker='*', label='ids match')
     plt.legend()
     plt.savefig('meta/EA_MO_station_ids/MORAIN-EA_API___apiID.png')
     plt.close()
     
     
 def plot_MO_EA_wiski():
+    """
+    Plot matching MO & EA gauges ~ WISKI ID.
+    
+    """
     morain = pd.read_csv('meta/MORAIN_meta_upd.csv')
     morain['ID'] = morain['ID'].astype(str)
     
@@ -71,13 +90,18 @@ def plot_MO_EA_wiski():
                        right_on='ID', how='inner')
     
     plt.figure(figsize=(12, 15), dpi=300)
-    plt.plot(morain['EASTING'].values, morain['NORTHING'].values, linestyle="", marker='x', c='red', label='MO')
-    plt.plot(meta_EA['easting'].values, meta_EA['northing'].values, linestyle="", c='blue', marker='+', label='EA')
-    plt.plot(merged_['easting'].values, merged_['northing'].values, linestyle="", c='green', marker='*', label='ids match')
+    plt.plot(morain['EASTING'].values, morain['NORTHING'].values,
+             linestyle="", marker='x', c='red', label='MO')
+    plt.plot(meta_EA['easting'].values, meta_EA['northing'].values,
+             linestyle="", c='blue', marker='+', label='EA')
+    plt.plot(merged_['easting'].values, merged_['northing'].values,
+             linestyle="", c='green', marker='*', label='ids match')
     plt.legend()
     plt.savefig('meta/EA_MO_station_ids/MORAIN-EA_API___wiskiID.png')
     plt.close()
 
+
+''' ___________________________ helpers __________________________________ '''
 
 # id format helper
 def id_bk_hlpr(x):
@@ -126,8 +150,10 @@ def MO_EA_mapping_dist():
         c_east = mEA.loc[i, 'easting']
         c_north = mEA.loc[i, 'northing']
             
-        meta_MO['dists'] = np.sqrt( (meta_MO['EASTING']-c_east)*(meta_MO['EASTING']-c_east) + 
-                                   (meta_MO['NORTHING']-c_north)*(meta_MO['NORTHING']-c_north) )
+        meta_MO['dists'] = np.sqrt( (meta_MO['EASTING']-c_east)
+                                   *(meta_MO['EASTING']-c_east)
+                                   + (meta_MO['NORTHING']-c_north)
+                                   *(meta_MO['NORTHING']-c_north) )
         
         # closest = meta_MO.sort_values('dists').iloc[:10]
         # closest['EA_ID'] = [mEA.loc[i, 'id']]*10
@@ -172,7 +198,6 @@ def MO_EA_match():
     dt.to_csv('meta/EA_MO_station_ids/EA_MO_match.csv')
 
 
-
 ''' _________________ morain data last datapoint _________________________ '''
 
 def morain_data_years():
@@ -212,7 +237,9 @@ def morain_data_years():
 def MO_EA_map_final():
     meta_MO = pd.read_csv('meta/MORAIN_meta.csv', header=0)
     meta_EA = pd.read_csv('meta/EA_API_meta.csv', header=0)
-    
+    id_corr = pd.read_excel('meta/EA_MO_station_ids/Rainfall API ID Lookup_NR Version.xlsx', header=0)
+
+
     pass
 
 

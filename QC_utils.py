@@ -380,7 +380,6 @@ def model_inp_subtables(station, n_inps):
     st_map.loc[station, 0] = -1    
     st_map.to_csv('_model_inps_subtable/'+station+'.csv', index=True)
 
-
 # for st in os.listdir('plots'):
 #     model_inp_subtables(st, 20)
 

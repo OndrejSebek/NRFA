@@ -135,7 +135,7 @@ def model_trainer(IDS, dist,
         x.keras_plots()
 
 if __name__ == "__main__":
-    model_trainer([49006], 20, ep=1)
+    model_trainer([23011], 20, ep=1)
 
 
 ''' _____________________________ KERNETS ________________________________ '''
@@ -143,7 +143,7 @@ if __name__ == "__main__":
 def kernets_ensembler(IDS, n_models=10):
     """
     Combine nr. of trained NNs into mod ensemble. 
-    Reads RMSE fit table, lvl2 *_inp+*_exp.
+    Reads model+scaler files, RMSE fit table, lvl2 *_inp+*_exp.
     Exports level3 data. 
 
     Parameters
@@ -169,5 +169,5 @@ def kernets_ensembler(IDS, n_models=10):
         # z.plots(2000)
 
 if __name__ == "__main__":
-    kernets_ensembler([49006], 10)
+    kernets_ensembler([23011], 10)
     
