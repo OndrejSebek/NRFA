@@ -84,8 +84,20 @@ def fetch_preqc_qc(station_id):
     merged = merged.dropna()
     
     # export preqc/qcd
+    if not os.path.exists('data/level3/'+str(station_id)):
+        os.mkdir('data/level3/'+str(station_id))
+        
     merged.to_csv('data/level3/'+str(station_id)+'/'+str(station_id)+'_qc.csv')
 
+"""
+IDS = [35003, 39096, 39084, 47019, 39125, 38014, 39056, 30014, 33055, 39049,
+       40017, 33018, 33023, 41027, 37015, 38007, 41030, 33031, 39058, 33030,
+       49006, 68020, 34010, 28015, 34018, 30002, 46005, 38022, 38021, 28044,
+       54017, 34019, 33035, 30012, 41016, 32031]
+
+for id in IDS:
+    fetch_preqc_qc(id)
+"""
 
 def get_metrics(station_id, mrgd_orig, n_dt):
     """
