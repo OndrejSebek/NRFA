@@ -62,9 +62,9 @@ class Kernets:
         self.exp = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp.csv', index_col=0)#.values)
 
 
-    def get_mod(self, bounds, conf=0.95):
+    def get_mod(self, bounds=[], conf=0.95):
         """
-        Get prediction (self.m, self.std) with all subsetted (__init__) NNs 
+        Model (self.m, self.std) with all subsetted (__init__) NNs 
         for given period.
 
         Parameters
@@ -108,7 +108,7 @@ class Kernets:
         self.std_w = np.sqrt(np.average((self.pred-self.m_w[:,None])**2, weights=weights, axis=1))
         
         # conf intervals
-        n = len(self.pred)
+        # n = len(self.pred)
         
         # use mean and std
         #self.m = np.mean(self.pred, axis=1)
@@ -119,9 +119,9 @@ class Kernets:
         self.std = self.std_w
         
         # set conf intervals
-        self.h = self.std * t.ppf((1+conf)/2, n-1)       
-        self.low = self.m-self.h
-        self.high = self.m+self.h
+        # self.h = self.std * t.ppf((1+conf)/2, n-1)       
+        # self.low = self.m-self.h
+        # self.high = self.m+self.h
         
         # kde
         # self.kdes = []

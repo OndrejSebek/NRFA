@@ -134,27 +134,40 @@ def model_trainer(IDS, dist,
         y.to_csv('RMSEs/keras_RMSE_'+str(st_id)+'.csv')
         x.keras_plots()
 
+if __name__ == "__main__":
+    model_trainer([49006], 20, ep=1)
 
-model_trainer([49006], 20, ep=1)
 
 ''' _____________________________ KERNETS ________________________________ '''
 
-for st_id in IDS:
-    z = knets.Kernets(st_id, 10)
+def kernets_ensembler(IDS, n_models=10):
+    """
+    Combine nr. of trained NNs into mod ensemble. 
+    Reads RMSE fit table, lvl2 *_inp+*_exp.
+    Exports level3 data. 
+
+    Parameters
+    ----------
+    IDS : list [int/str]
+        NRFA station IDs.
+    n_models : int, optional
+        Nr. of models to form the ensemble. The default is 10.
+
+    """
+    for st_id in IDS:
+        z = knets.Kernets(st_id, n_models)
+        
+        # preqc/qc files - level3 data (*_qc)
+        qc_u.fetch_preqc_qc(st_id)
     
-    # preqc/qc files
-    qc_u.fetch_preqc_qc(st_id)
+        # preds - level3 data (*_merged, *_mods)
+        z.get_mod()
+        z.save_mod_merged()
+        
+        # z.get_orig_exp()
+        # z.find_outliers() 
+        # z.plots(2000)
 
-    # preds
-    z.get_mod(bounds=0, conf=.95)
-    z.save_mod_merged()
+if __name__ == "__main__":
+    kernets_ensembler([49006], 10)
     
-    # z.get_orig_exp()
-    # z.find_outliers() 
-    # z.plots(2000)
-
-
-# mrgd.iloc[-400:].plot(figsize=(100, 20))
-# plt.savefig('awda.png')
-# plt.legend()
-# plt.close()
