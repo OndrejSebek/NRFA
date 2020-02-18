@@ -1,6 +1,8 @@
+import os
+
 import pandas as pd
 import numpy as np
-import os
+import requests
 
 from sklearn.metrics import mean_squared_error
 from math import sqrt
@@ -27,28 +29,8 @@ def fetch_NRFA_local_2019(station_id):
         curf = pd.read_csv('data/nrfa_raw/'+str(station_id)+'/'+file,
                            index_col=0, header=None)
         
-        # variable meta rows
-        if curf[1].iloc[19][0].isnumeric():
-            skiprows = 18
-        else:
-            skiprows = 19
-            
-        curf = curf.iloc[skiprows:]    
-        curf = curf[[1]].drop(curf.index[0], axis=0)
-        
-        # df formating
-        curf.index.name = 'date'
-        curf.columns=[file[5:10]]
-        
-        # date format
-        dtformat = curf.index[0]
-        
-        if dtformat[4] == '-':
-            dtf = '%Y-%m-%d'
-        else:
-            dtf = '%d/%m/%Y'        
-        
-        curf.index = pd.to_datetime(curf.index, format=dtf).normalize()
+        # format
+        curf = get_gdf_live(curf, file)
         
         # MERGE to bigf
         if bigf.empty:
@@ -77,21 +59,26 @@ def fetch_preqc_qc(station_id):
         NRFA station ID
         
     """
-    qc_corr = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts.csv', index_col=1)
+    qc_corr = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts-2020-02-17.csv', index_col=1)
     qc_corr = qc_corr[qc_corr['STATION'] == station_id][['FLOW_VALUES']]
     qc_corr.index = pd.to_datetime(qc_corr.index, format='%Y-%m-%d %H:%M:%S').normalize()
 
     # get orig(preqc)
     qc_corr['orig'] = qc_corr['FLOW_VALUES'].apply(get_orig)
-
-    # change exp to pre-audit
-    exp_o = pd.read_csv('data/level2/'+str(station_id)+'/'+str(station_id)+'_exp.csv',
-                        index_col=0)
+    # qc_corr['new'] = qc_corr['FLOW_VALUES'].apply(get_new)
     
-    merged = pd.merge(exp_o, qc_corr[['orig']],
+    # get qcd from gdf-live (tsp)
+    file = 'nrfa_'+str(station_id)+'_gdf-live.csv'
+    curf = pd.read_csv('data/nrfa_raw/'+str(station_id)+'/'+file,
+                           index_col=0, header=None)
+    curf = get_gdf_live(curf, file)
+    
+    # merge 
+    merged = pd.merge(curf, qc_corr[['orig']],
                       left_index=True, right_index=True,
                       how='outer')
     
+    # fill with qcd where no qc corr
     merged.loc[merged['orig'] == 'nan', ['orig']] = np.nan
     merged['orig'] = merged['orig'].fillna(merged[str(station_id)]).astype(float)
     merged = merged.dropna()
@@ -168,6 +155,33 @@ def get_new(x):
             if not is_float(x_):
                 x_ = x_[1:]           
     return x_
+
+
+def get_gdf_live(curf, file):
+    # variable meta rows
+    if curf[1].iloc[19][0].isnumeric():
+        skiprows = 18
+    else:
+        skiprows = 19
+        
+    curf = curf.iloc[skiprows:]    
+    curf = curf[[1]].drop(curf.index[0], axis=0)
+    
+    # df formating
+    curf.index.name = 'date'
+    curf.columns=[file[5:10]]
+    
+    # date format
+    dtformat = curf.index[0]
+    
+    if dtformat[4] == '-':
+        dtf = '%Y-%m-%d'
+    else:
+        dtf = '%d/%m/%Y'        
+    
+    curf.index = pd.to_datetime(curf.index, format=dtf).normalize()
+    
+    return curf
 
 ''' ________________________ / helpers __________________________________ '''
 
@@ -291,7 +305,7 @@ def qc_correction_stats():
     QC correction stats for each NRFA station.
     
     """ 
-    meta = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts.csv')
+    meta = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts-2020-02-17.csv')
 
     big = []
     for station in meta['STATION'].unique():
@@ -304,7 +318,7 @@ def qc_correction_stats():
         mean_obs = cur_qcd.mean()
         
         # comp change
-        ch_sum = abs(cur_qcd-cur_preqc).sum()/mean_obs     
+        ch_sum = abs(cur_qcd-cur_preqc).sum()/mean_obs
         ch_max = abs(cur_qcd-cur_preqc).max()/mean_obs
         
         ch_a = abs(cur_qcd-cur_preqc).sort_values(ascending=False)[:10].sum()/mean_obs

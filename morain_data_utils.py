@@ -86,11 +86,14 @@ def id_bk_hlpr(x):
     return x
 
 
-# map EA api RG meta to MO
-#   selects closest station(/s) for each site
-#   and merges meta
-#
+''' _________________ EA & MO mapping / matching _________________________ '''
+
 def MO_EA_mapping_dist():
+    """
+    Map EA api RG meta to MO.
+    Selects closest station(/s) for each site and merges meta.
+
+    """
     meta_MO = pd.read_csv('meta/MORAIN_meta.csv', header=0)
     meta_EA = pd.read_csv('meta/EA_API_meta.csv', header=0)
     id_corr = pd.read_excel('meta/EA_MO_station_ids/Rainfall API ID Lookup_NR Version.xlsx', header=0)
@@ -98,11 +101,11 @@ def MO_EA_mapping_dist():
     mEA = meta_EA #.sort_values('easting', ascending=True)[:100]
     
     big = pd.DataFrame()
-    # j=0
     for i in mEA.index:
         # print(mEA.loc[i])
         cur_EA_id = mEA.loc[i, 'id']
         
+        # id format (ugh)
         while (cur_EA_id[0] == '0'):
             cur_EA_id = cur_EA_id[1:]
         
@@ -116,8 +119,6 @@ def MO_EA_mapping_dist():
         else:
             wiski_id = [cur_EA_id]
             name = ['None']
-            # j+=1
-            # print(j)
         
         wiski_id = str(wiski_id[0])
         name = name[0]
@@ -154,9 +155,11 @@ def MO_EA_mapping_dist():
     big.to_csv('meta/EA_MO_station_ids/EA_MO_mapping.csv')
     
 
-# match MO and EA api RGs based on EA_ID/WISKI_ID/name 
-#
 def MO_EA_match():
+    """
+    Match MO and EA api RGs based on EA_ID/WISKI_ID/name 
+
+    """
     dt = pd.read_csv('meta/EA_MO_station_ids/EA_MO_mapping.csv',
                      index_col=0)
 
@@ -181,24 +184,42 @@ def morain_data_years():
     
     """
     # adjust to os.getcwd()
-    path = '../data/morain_raw/data/'
+    path = 'data/morain_raw/data/'
     ends = []
     
     for file in os.listdir(path):
         ends.append([file, pd.read_csv(path+file, index_col=0).index[-1]])
 
     ends = pd.DataFrame(ends)
+    ends.columns = ['id', 'date']
     
-    ends[0] = ends[0].apply(lambda x: x[:-4])
-    ends[1] = pd.to_datetime(ends[1])
+    ends['id'] = ends['id'].apply(lambda x: x[:-4])
+    ends['date'] = pd.to_datetime(ends['date'])
 
-    ends.sort_values(1, inplace=True)
+    ends.sort_values('date', inplace=True)
     ends.reset_index(inplace=True)
-
+    
+    ends.to_csv('meta/morain_data_ends.csv', index=False)
+    
     ends[1].plot(figsize=(10, 4))
     plt.savefig('morain_data.png')    
 
     print(ends[ends[1]=='2019-12-31'].shape[0]/ends.shape[0])
+
+
+''' _______________ MORAIN - EA API - matching_final _____________________ '''
+
+def MO_EA_map_final():
+    meta_MO = pd.read_csv('meta/MORAIN_meta.csv', header=0)
+    meta_EA = pd.read_csv('meta/EA_API_meta.csv', header=0)
+    
+    pass
+
+
+
+
+
+
 
 
 
