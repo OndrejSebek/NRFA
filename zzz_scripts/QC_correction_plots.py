@@ -8,9 +8,9 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 
-path = '../data/level3/'
+path = 'data/level3/'
 
-meta_id_name = pd.read_csv('../meta/nrfa_station_info.csv')[['id', 'name']]
+meta_id_name = pd.read_csv('meta/nrfa_station_info.csv')[['id', 'name']]
 
 
 ''' ____________________________ TIMESERIES ______________________________ '''
@@ -20,9 +20,9 @@ for i in os.listdir(path):
     if i == '49006':
         continue
     
-    dt = pd.read_csv(path+i+'/comp/'+i+'_merged.csv', index_col=0)
+    dt = pd.read_csv(path+i+'/'+i+'_qc.csv', index_col=0)
     dt_sub = dt[dt[i] != dt['orig']]
-    
+    print(dt_sub)
     if not dt_sub.empty:
         # find name
         name = str(i)+': '+meta_id_name[meta_id_name.id == int(i)].name.values[0]
@@ -44,7 +44,7 @@ for i in os.listdir(path):
         plt.legend()
         plt.title(name)
         plt.yscale("log")
-        plt.savefig('../QC_plots/'+i+'.png')
+        plt.savefig('QC_plots/'+i+'.png')
         plt.close()
 
 
