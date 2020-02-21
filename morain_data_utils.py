@@ -4,6 +4,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
+
 
 ''' ______________________ MORAIN data + meta ____________________________ '''
 
@@ -235,29 +238,110 @@ def morain_data_years():
 ''' _______________ MORAIN - EA API - matching_final _____________________ '''
 
 def MO_EA_map_final():
-    meta_MO = pd.read_csv('meta/MORAIN_meta.csv', header=0)
-    meta_EA = pd.read_csv('meta/EA_API_meta.csv', header=0)
-    id_corr = pd.read_excel('meta/EA_MO_station_ids/Rainfall API ID Lookup_NR Version.xlsx', header=0)
+    meta_MO = pd.read_csv('meta/MORAIN_meta.csv', header=0).astype(str)
+    meta_EA_raw = pd.read_csv('meta/EA_API_meta_raw.csv', header=0).astype(str)
+    meta_EA = pd.read_csv('meta/EA_API_meta.csv', header=0).astype(str)
+    id_corr = pd.read_excel('meta/EA_MO_station_ids/Rainfall API ID Lookup_NR Version.xlsx',
+                            header=0).astype(str)
+    
+    # merge with wiski IDs
+    q = pd.merge(meta_EA_raw, id_corr,
+                 left_on='id', right_on='ID in API',
+                 how='inner').drop('Unnamed: 9', axis=1)
+    q.reset_index(inplace=True)
+    q.columns = ['idx']+list(q.columns[1:])
+    q['matched_on'] = None
+    
+    # set and format IDs for col to merge on (keeping old format IDs)
+    q['ID_in_API_match'] = q['ID in API'].apply(id_bk_hlpr)
+    q['WISKI_ID_match'] = q['WISKI ID'].apply(id_bk_hlpr)
+    meta_MO['ID_match'] = meta_MO['ID'].apply(id_bk_hlpr)
+    meta_MO['SRC_ID_match'] = meta_MO['SRC_ID'].apply(id_bk_hlpr)
+    
+    meta_MO['NAME'] = meta_MO['NAME'].str.upper()
+    q['Name'] = q['Name'].str.upper()
 
+    """ _____________________________ IDS ________________________________ """
+    # wiski ~ ID
+    q1_ok = pd.merge(q, meta_MO,
+                     left_on='WISKI_ID_match', right_on='ID_match',
+                     how='inner')
+    q1_ok['matched_on'] = 'WISKI-ID'    
+    q1_l = q.drop(q1_ok.idx, axis=0)
+    
+    # API ~ SRC_ID
+    q2_ok = pd.merge(q1_l, meta_MO,
+                     left_on='ID_in_API_match', right_on='SRC_ID_match',
+                     how='inner')
+    q2_ok['matched_on'] = 'API-SRC_ID'    
+    
+    q2_l = q1_l.drop(q2_ok.idx, axis=0)
+    
+    """ ____________________ DIST + STATION NAME _________________________ """
+    n_sub_stations = 5
+    q3_ok = []   
 
-    pass
+    for i in q2_l.index:
+        # DIST
+        c_east = int(q2_l.loc[i, 'easting'])/1000
+        c_north = int(q2_l.loc[i, 'northing'])/1000
+    
+        dists = np.sqrt( (meta_MO['EASTING'].astype(int)/1000-c_east)**2
+                    + (meta_MO['NORTHING'].astype(int)/1000-c_north)**2 )
+        dists.sort_values(inplace=True)
+        
+        sub_stations_dist = dists.loc[dists.index[:n_sub_stations]]
+        sub_meta_MO = meta_MO.loc[sub_stations_dist.index]
+        
+        # NAME (FUZZY)
+        names = process.extract(q2_l.loc[i, 'Name'],
+                                sub_meta_MO['NAME'].unique(),
+                                scorer=fuzz.partial_ratio)
+        
+        scores = [name[1] for name in names]
+        names = [name[0] for name in names]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        # WEIGHTING
+        best_name = sub_meta_MO[sub_meta_MO['NAME'] == names[0]]
+        best_dist = sub_meta_MO.loc[[sub_meta_MO.index[0]]]
+        
+        if best_name.shape[0] > 1:
+            best_name = best_name.loc[[best_name.index[0]]]
+        if best_dist.shape[0] > 1:
+            best_dist = best_dist.loc[[best_dist.index[0]]]
+    
+        if best_name.index == best_dist.index:
+            cur = list(q2_l.loc[i].values)
+            cur.extend(np.concatenate(sub_meta_MO.loc[best_name.index].values))
+            q3_ok.append(cur)
+        else:
+            # print('\n\n', q2_l.loc[i, 'Name'], '\n', names, '\n', scores, 
+            #       '\n', sub_meta_MO['NAME'],'\n', sub_stations_dist,'\n\n')
+    
+    # comb    
+    q3_ok = pd.DataFrame(q3_ok)
+    q3_ok.columns = q2_ok.columns
+    q3_ok['matched_on'] = 'DIST+NAME_1' 
+    
+    q3_l = q2_l.drop(q3_ok.idx, axis=0)
+    
+    """ ________________________ COMB + EXPORT ___________________________ """    
+    
+    q_out = pd.concat([q1_ok, q2_ok, q3_ok, q3_l], axis=0,
+                      ignore_index=True, sort=False)
+    
+    q_out.drop('idx', axis=1, inplace=True)
+    q_out.sort_values('id')
+    q_out = q_out[['id', 'ID in API', 'WISKI ID', 'ID', 'SRC_ID',
+                   'Name', 'NAME',
+                   'easting', 'northing', 'EASTING', 'NORTHING',
+                   'WISKI Easting', 'WISKI Northing',
+                   'EASTING in API', 'NORTHING in API', 
+                   'WISKI Grid Ref', 'GRIDREF in API',
+                   'COUNTRY_CODE', 'HYDROMETRIC_AREA', 'ELEVATION', 'GEOG_PATH',
+                   'matched_on', 'ID_match', 'SRC_ID_match',
+                   'ID_in_API_match', 'WISKI_ID_match']]
+    
+    q_out.to_csv('meta/EA_MO_station_ids/final/EA_API_MO_ID_mapping_fin.csv',
+                 index=False)
+    
