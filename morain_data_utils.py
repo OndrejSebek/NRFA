@@ -317,6 +317,7 @@ def MO_EA_map_final():
         else:
             # print('\n\n', q2_l.loc[i, 'Name'], '\n', names, '\n', scores, 
             #       '\n', sub_meta_MO['NAME'],'\n', sub_stations_dist,'\n\n')
+            pass
     
     # comb    
     q3_ok = pd.DataFrame(q3_ok)
@@ -344,4 +345,3 @@ def MO_EA_map_final():
     
     q_out.to_csv('meta/EA_MO_station_ids/final/EA_API_MO_ID_mapping_fin.csv',
                  index=False)
-    
