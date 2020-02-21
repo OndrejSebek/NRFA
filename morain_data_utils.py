@@ -235,9 +235,20 @@ def morain_data_years():
     print(ends[ends[1]=='2019-12-31'].shape[0]/ends.shape[0])
 
 
-''' _______________ MORAIN - EA API - matching_final _____________________ '''
+''' _________________ MORAIN - EA API - matching_final ___________________ '''
 
 def MO_EA_map_final():
+    """
+    Map EA API IDs onto MORAIN IDs.
+    
+    Goes through available IDs (for a given RG) and looks for a match. 
+    If no match found, finds nearest *n gauges and checks if names
+    match (fuzzy) and pairs gauge metadata if top scoring name match 
+    is also the gauge with lowest distance.
+    
+    Exports mapping meta file.
+
+    """
     meta_MO = pd.read_csv('meta/MORAIN_meta.csv', header=0).astype(str)
     meta_EA_raw = pd.read_csv('meta/EA_API_meta_raw.csv', header=0).astype(str)
     meta_EA = pd.read_csv('meta/EA_API_meta.csv', header=0).astype(str)
@@ -258,6 +269,7 @@ def MO_EA_map_final():
     meta_MO['ID_match'] = meta_MO['ID'].apply(id_bk_hlpr)
     meta_MO['SRC_ID_match'] = meta_MO['SRC_ID'].apply(id_bk_hlpr)
     
+    # capitalise names
     meta_MO['NAME'] = meta_MO['NAME'].str.upper()
     q['Name'] = q['Name'].str.upper()
 
@@ -301,7 +313,7 @@ def MO_EA_map_final():
         scores = [name[1] for name in names]
         names = [name[0] for name in names]
 
-        # WEIGHTING
+        # MATCHING
         best_name = sub_meta_MO[sub_meta_MO['NAME'] == names[0]]
         best_dist = sub_meta_MO.loc[[sub_meta_MO.index[0]]]
         
@@ -319,7 +331,6 @@ def MO_EA_map_final():
             #       '\n', sub_meta_MO['NAME'],'\n', sub_stations_dist,'\n\n')
             pass
     
-    # comb    
     q3_ok = pd.DataFrame(q3_ok)
     q3_ok.columns = q2_ok.columns
     q3_ok['matched_on'] = 'DIST+NAME_1' 
@@ -327,7 +338,6 @@ def MO_EA_map_final():
     q3_l = q2_l.drop(q3_ok.idx, axis=0)
     
     """ ________________________ COMB + EXPORT ___________________________ """    
-    
     q_out = pd.concat([q1_ok, q2_ok, q3_ok, q3_l], axis=0,
                       ignore_index=True, sort=False)
     
