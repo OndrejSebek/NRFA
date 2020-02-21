@@ -163,6 +163,7 @@ class NRFA:
                                           'northing': i['northing']},
                                          ignore_index=True)
        
+        api_ids.to_csv('meta/EA_API_meta_raw.csv', index=False)
         api_ids['id'] = api_ids['id'].apply(self.format_EA_ids_helper)
         api_ids.to_csv('meta/EA_API_meta.csv', index=False)
      
@@ -182,7 +183,7 @@ class NRFA:
             maximum distance for MO RGs [km]
 
         """
-        # conv to [km]
+        # conv to [m] ~ easting, northing
         thr_NRFA *= 1000
         thr_EA *= 1000
         thr_MO *= 1000
