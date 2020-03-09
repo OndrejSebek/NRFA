@@ -916,7 +916,7 @@ class NRFA:
     
     ''' ___________________________ KERAS ________________________________ '''
 
-    def keras_model(self, lr=1e-5):
+    def keras_model(self, lr=1e-4):
         """
         Define keras model topology and callbacks.
 
