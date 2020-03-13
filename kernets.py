@@ -31,8 +31,10 @@ class Kernets:
         self.scalers = []
         self.n_inps = []
         
-        self.net_rmses = pd.read_csv('RMSEs/keras_RMSE_'+self.station_id+'.csv', index_col=0)
-        self.net_rmses['best_nets'] = np.sqrt(self.net_rmses['cal']*self.net_rmses['cal'] + self.net_rmses['val']*self.net_rmses['val'])
+        self.net_rmses = pd.read_csv(f'RMSEs/keras_RMSE_{self.station_id}.csv',
+                                     index_col=0)
+        self.net_rmses['best_nets'] = np.sqrt(self.net_rmses['cal']*self.net_rmses['cal']
+                                              + self.net_rmses['val']*self.net_rmses['val'])
         self.net_rmses = self.net_rmses.sort_values('best_nets')
         
         self.net_rmses = self.net_rmses[:n_nets]
@@ -41,10 +43,10 @@ class Kernets:
         
         print('\n', self.station_id)
         for net in self.best_nets:
-            self.nets.append(tf.keras.models.load_model('_models/'+self.station_id+'/mod'+str(net)+'.h5'))        
-            self.scalers.append(joblib.load('_models/'+self.station_id+'/scaler'+str(net)+'.pkl'))
+            self.nets.append(tf.keras.models.load_model(f'_models/{self.station_id}/mod{net}.h5'))        
+            self.scalers.append(joblib.load(f'_models/{self.station_id}/scaler{net}.pkl'))
             self.n_inps.append(self.nets[0].get_weights()[0].shape[0])
-            print('net & scaler', net, 'loaded')
+            print(f'net & scaler {net} loaded')
             
             
         # for file in os.listdir('_models/'+self.station_id):
@@ -58,8 +60,10 @@ class Kernets:
         #             self.xgb_reg.load_model('_models/'+self.station_id+'/'+file)
         #             print(file, 'loaded (xgb)')
             
-        self.inp = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp.csv', index_col=0)
-        self.exp = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp.csv', index_col=0)#.values)
+        self.inp = pd.read_csv(f'data/level2{+self.station_id}/{self.station_id}_inp.csv',
+                               index_col=0)
+        self.exp = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_exp.csv',
+                               index_col=0)#.values)
 
 
     def get_mod(self, bounds=[], conf=0.95):
@@ -78,7 +82,7 @@ class Kernets:
         ndim = self.inp.ndim
         if self.inp.shape[ndim-1] != self.n_inps[0]:
             print('invalid n inps')
-            print(self.inp.shape[ndim-1], '/', self.n_inps[0])
+            print(f'{self.inp.shape[ndim-1]}/{self.n_inps[0]}')
             return
         
         if len([bounds]) > 1:
@@ -135,10 +139,10 @@ class Kernets:
         
         """
         # check for out directory
-        if not os.path.exists('data/level3/'+self.station_id):
-            os.mkdir('data/level3/'+self.station_id)
+        if not os.path.exists(f'data/level3/{self.station_id}'):
+            os.mkdir(f'data/level3/{self.station_id}')
         
-        qc = pd.read_csv('data/level3/'+self.station_id+'/'+self.station_id+'_qc.csv',
+        qc = pd.read_csv(f'data/level3/{self.station_id}/{self.station_id}_qc.csv',
                          index_col=0)
         
         self.m = pd.DataFrame(self.m, index=self.exp.index, columns=['nn_m'])
@@ -149,8 +153,9 @@ class Kernets:
         merged_out = pd.merge(merged_out, self.std,
                               left_index=True, right_index=True)
         
-        merged_out.to_csv('data/level3/'+self.station_id+'/'+self.station_id+'_merged.csv')
-        pd.DataFrame(self.pred, index=self.exp.index).to_csv('data/level3/'+self.station_id+'/'+self.station_id+'_mods.csv')
+        merged_out.to_csv(f'data/level3/{self.station_id}/{self.station_id}_merged.csv')
+        pd.DataFrame(self.pred,
+                     index=self.exp.index).to_csv(f'data/level3/{self.station_id}/{self.station_id}_mods.csv')
         
         # pd.DataFrame(self.pred).to_csv('data/level3/'+self.station_id+'/nn/x_nns.csv')
         # pd.DataFrame(self.m).to_csv('data/level3/'+self.station_id+'/nn/x_m.csv')
@@ -164,8 +169,11 @@ class Kernets:
         REDUNDANT: Get (@self.exp_orig) original (preQC) timeseries.
 
         """
-        self.exp_orig = pd.read_csv('data/level3/'+self.station_id+'/comp/'+self.station_id+'_orig.csv', index_col=0)
-        self.exp_orig = pd.merge(self.exp, self.exp_orig, left_index=True, right_index=True, how='outer')
+        self.exp_orig = pd.read_csv(f'data/level3/{self.station_id}/comp/{self.station_id}_orig.csv',
+                                    index_col=0)
+        self.exp_orig = pd.merge(self.exp, self.exp_orig,
+                                 left_index=True, right_index=True,
+                                 how='outer')
         self.exp_orig['orig'] = self.exp_orig['orig'].fillna(self.exp_orig[self.station_id])
         self.exp_orig = self.exp_orig.dropna()
         
@@ -191,7 +199,8 @@ class Kernets:
         # flag vals *n_std stds away from mean and with *d_abs absolute distance (mby redundant)
         exp_v = np.concatenate(self.exp_orig.values)
         #fl = (abs(self.m - self.exp) > n_std*abs(self.std)) & (abs(self.m - self.exp) > d_abs)    # use qcd exp - nn mod
-        fl = (abs(self.m - self.exp_orig.values) > n_std*abs(self.std).values) & (abs(self.m.values - self.exp_orig.values) > d_abs)        # use preqc exp - nn mod
+        fl = ((abs(self.m-self.exp_orig.values) > n_std*abs(self.std).values) 
+              & (abs(self.m.values-self.exp_orig.values) > d_abs))      # use preqc exp - nn mod
        
         # self.flagged = self.exp.copy()
         self.flagged = self.exp_orig.values
@@ -228,8 +237,8 @@ class Kernets:
             subset last *n_dt data points (0 for no subsetting)
 
         """
-        if not os.path.exists('plots/'+self.station_id+'/comp/'):
-            os.mkdir('plots/'+self.station_id+'/comp/')
+        if not os.path.exists(f'plots/{self.station_id}/comp/'):
+            os.mkdir(f'plots/{self.station_id}/comp/')
             
         if n_dt == 0:
             n_dt = len(self.low)
@@ -248,7 +257,7 @@ class Kernets:
         plt.plot(range(len(self.low))[-n_dt:], self.flags_tr[-n_dt:], marker='x', markersize=8, c='red', linestyle='')
         #plt.plot(range(len(self.low))[-n_dt:], self.difs.values[-n_dt:], marker='+', markersize=8, c='red', linestyle='')
         #plt.plot(self.exp.values)
-        plt.savefig('plots/'+self.station_id+'/comp/flags_kde_3cons.jpg')
+        plt.savefig(f'plots/{self.station_id}/comp/flags_kde_3cons.jpg')
         plt.close()
         
         # single vals outside KDE
@@ -258,5 +267,5 @@ class Kernets:
         plt.plot(range(len(self.low))[-n_dt:], self.flagged[-n_dt:], marker='x', markersize=8, c='red', linestyle='')
         #plt.plot(range(len(self.low))[-n_dt:], self.difs.values[-n_dt:], marker='+', markersize=8, c='red', linestyle='')
         #plt.plot(self.exp.values)
-        plt.savefig('plots/'+self.station_id+'/comp/flags_kde.jpg')
+        plt.savefig(f'plots/{self.station_id}/comp/flags_kde.jpg')
         plt.close()

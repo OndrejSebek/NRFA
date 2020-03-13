@@ -157,29 +157,35 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
         
         avg_metrics = pd.DataFrame()
         for metric in ['nRMSE_cal_NN', 'nRMSE_val_NN', 'NSE_cal_NN', 'NSE_val_NN']:
-            avg_metrics = avg_metrics.append(out[out['var'] == metric].drop('var', axis=1).astype(float).mean(), ignore_index=True)
+            avg_metrics = avg_metrics.append(out[out['var'] == metric]
+                                             .drop('var', axis=1)
+                                             .astype(float)
+                                             .mean(),
+                                             ignore_index=True)
         
-        avg_metrics = pd.concat([pd.DataFrame(['nRMSE_cal_NN_avg', 'nRMSE_val_NN_avg', 'NSE_cal_NN_avg', 'NSE_val_NN_avg']), avg_metrics],
+        avg_metrics = pd.concat([pd.DataFrame(['nRMSE_cal_NN_avg', 'nRMSE_val_NN_avg',
+                                               'NSE_cal_NN_avg', 'NSE_val_NN_avg']),
+                                 avg_metrics],
                                 axis=1, ignore_index=True)
         
         avg_metrics.columns = ['var']+list(range(pars.shape[1]-1))
     
         out = out.append(avg_metrics, ignore_index=True) 
-        out.to_csv('GS/xgbsearch'+str(station_id)+'.csv')
+        out.to_csv(f'GS/xgbsearch_{station_id}.csv')
 
 ''' ______________________________________________________________________ '''
 
 
 # station_ids, range_opts, range_rad_m, xgb_sub_n, runs
 
-xgbsearch(['49006'],
-          ['radius', 'updwn'],
-          [20, 51, 10],
-          ['MO', 'NRFA_only'],
-          [20, 30, 40],
-          5,
-          lr=0.0001,
-          ep=10000)
+# xgbsearch(['49006'],
+#           ['radius', 'updwn'],
+#           [20, 51, 10],
+#           ['MO', 'NRFA_only'],
+#           [20, 30, 40],
+#           5,
+#           lr=0.0001,
+#           ep=10000)
 
 
 

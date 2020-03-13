@@ -24,9 +24,9 @@ def fetch_NRFA_local_2019(station_id):
 
     """
     bigf = pd.DataFrame()
-    for file in os.listdir('data/nrfa_raw/'+str(station_id)):
+    for file in os.listdir(f'data/nrfa_raw/{station_id}'):
         print(file)
-        curf = pd.read_csv('data/nrfa_raw/'+str(station_id)+'/'+file,
+        curf = pd.read_csv(f'data/nrfa_raw/{station_id}/{file}',
                            index_col=0, header=None)
         
         # format
@@ -40,12 +40,12 @@ def fetch_NRFA_local_2019(station_id):
                             left_index=True, right_index=True,
                             how='outer')
             
-    if not os.path.exists('data/level1/'+str(station_id)):
-        os.mkdir('data/level1/'+str(station_id))
+    if not os.path.exists(f'data/level1/{station_id}'):
+        os.mkdir(f'data/level1/{station_id}')
 
     #bigf.to_csv('data/_NRFA_qc/data/'+str(station_id)+'/'+str(station_id)+'_NRFA.csv')
     bigf = bigf.sort_index()
-    bigf.to_csv('data/level1/'+str(station_id)+'/'+str(station_id)+'_NRFA.csv')
+    bigf.to_csv(f'data/level1/{station_id}/{station_id}_NRFA.csv')
 
 
 def fetch_preqc_qc(station_id):
@@ -59,18 +59,20 @@ def fetch_preqc_qc(station_id):
         NRFA station ID
         
     """
-    qc_corr = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts-2020-02-17.csv', index_col=1)
+    qc_corr = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts-2020-02-17.csv',
+                          index_col=1)
     qc_corr = qc_corr[qc_corr['STATION'] == station_id][['FLOW_VALUES']]
-    qc_corr.index = pd.to_datetime(qc_corr.index, format='%Y-%m-%d %H:%M:%S').normalize()
+    qc_corr.index = pd.to_datetime(qc_corr.index,
+                                   format='%Y-%m-%d %H:%M:%S').normalize()
 
     # get orig(preqc)
     qc_corr['orig'] = qc_corr['FLOW_VALUES'].apply(get_orig)
     # qc_corr['new'] = qc_corr['FLOW_VALUES'].apply(get_new)
     
     # get qcd from gdf-live (tsp)
-    file = 'nrfa_'+str(station_id)+'_gdf-live.csv'
-    curf = pd.read_csv('data/nrfa_raw/'+str(station_id)+'/'+file,
-                           index_col=0, header=None)
+    file = f'nrfa_{station_id}_gdf-live.csv'
+    curf = pd.read_csv(f'data/nrfa_raw/{station_id}/{file}',
+                       index_col=0, header=None)
     curf = get_gdf_live(curf, file)
     
     # merge 
@@ -84,10 +86,10 @@ def fetch_preqc_qc(station_id):
     merged = merged.dropna()
     
     # export preqc/qcd
-    if not os.path.exists('data/level3/'+str(station_id)):
-        os.mkdir('data/level3/'+str(station_id))
+    if not os.path.exists(f'data/level3/{station_id}'):
+        os.mkdir(f'data/level3/{station_id}')
         
-    merged.to_csv('data/level3/'+str(station_id)+'/'+str(station_id)+'_qc.csv')
+    merged.to_csv(f'data/level3/{station_id}/{station_id}_qc.csv')
 
 """
 IDS = [35003, 39096, 39084, 47019, 39125, 38014, 39056, 30014, 33055, 39049,
@@ -215,33 +217,39 @@ def plot_preqc_qc_nn(station_id, mrgd, n_dt):
 
     """
     st_id = str(station_id)
-    x_m = pd.read_csv('data/level3/'+st_id+'/nn/x_m.csv', index_col=0)
+    x_m = pd.read_csv(f'data/level3/{st_id}/nn/x_m.csv', index_col=0)
     x_m.index = mrgd.index
-    x_l = pd.read_csv('data/level3/'+st_id+'/nn/x_l.csv', index_col=0)
+    x_l = pd.read_csv(f'data/level3/{st_id}/nn/x_l.csv', index_col=0)
     x_l.index = mrgd.index
-    x_h = pd.read_csv('data/level3/'+st_id+'/nn/x_h.csv', index_col=0)
+    x_h = pd.read_csv(f'data/level3/{st_id}/nn/x_h.csv', index_col=0)
     x_h.index = mrgd.index
 
     if n_dt == 0:
         n_dt = mrgd.shape[0]
         
-    fig, ax = plt.subplots(2, 1, figsize=(30,10), dpi=600, gridspec_kw={'height_ratios': [3, 1]}, sharey=False)
+    fig, ax = plt.subplots(2, 1, figsize=(30,10), dpi=600,
+                           gridspec_kw={'height_ratios': [3, 1]}, sharey=False)
     ax[0].plot(mrgd['orig'].values[-n_dt:], label='pre-qc', c='darkcyan')
     ax[0].plot(np.concatenate(x_m[-n_dt:].values), label='mod', c='red')
     ax[0].plot(mrgd[str(st_id)].values[-n_dt:], label='qcd', c='black')
     ax[0].legend(loc=1)
     
-    ax[1].plot(np.concatenate(x_m[-n_dt:].values)-mrgd['orig'].values[-n_dt:], label='mod_m', c='red')
-    ax[1].plot(mrgd['orig'].values[-n_dt:]-mrgd['orig'].values[-n_dt:], label='preqc', c='darkcyan')
-    ax[1].plot(np.concatenate(x_l[-n_dt:].values)-mrgd['orig'].values[-n_dt:], label='mod_l', c='salmon')
-    ax[1].plot(np.concatenate(x_h[-n_dt:].values)-mrgd['orig'].values[-n_dt:], label='mod_h', c='salmon')
-    ax[1].plot(mrgd[str(st_id)].values[-n_dt:]-mrgd['orig'].values[-n_dt:], label='qcd', c='black')
+    ax[1].plot(np.concatenate(x_m[-n_dt:].values)-mrgd['orig'].values[-n_dt:],
+               label='mod_m', c='red')
+    ax[1].plot(mrgd['orig'].values[-n_dt:]-mrgd['orig'].values[-n_dt:],
+               label='preqc', c='darkcyan')
+    ax[1].plot(np.concatenate(x_l[-n_dt:].values)-mrgd['orig'].values[-n_dt:],
+               label='mod_l', c='salmon')
+    ax[1].plot(np.concatenate(x_h[-n_dt:].values)-mrgd['orig'].values[-n_dt:],
+               label='mod_h', c='salmon')
+    ax[1].plot(mrgd[str(st_id)].values[-n_dt:]-mrgd['orig'].values[-n_dt:],
+               label='qcd', c='black')
     ax[1].legend(loc=1)
     
-    if not os.path.exists('plots/'+str(station_id)+'/comp'):
-        os.mkdir('plots/'+str(station_id)+'/comp')
+    if not os.path.exists(f'plots/{station_id}/comp'):
+        os.mkdir(f'plots/{station_id}/comp')
 
-    plt.savefig('plots/'+str(station_id)+'/comp/comp.jpg')
+    plt.savefig(f'plots/{station_id}/comp/comp.jpg')
     plt.close()
 
 
@@ -252,8 +260,9 @@ def Qn_fit_stats():
     """    
     big_rmse = []
     for station in os.listdir('data/level3/'):
-        cur_dt = pd.read_csv('data/level3/'+station+'/'+station+'_merged.csv',
-                             index_col=0).sort_values(station, ascending=True)
+        cur_dt = pd.read_csv(f'data/level3/{station}/{station}_merged.csv',
+                             index_col=0).sort_values(station,
+                                                      ascending=True)
         
         _q70 = int(cur_dt.shape[0]*.3)
         _q30 = int(cur_dt.shape[0]*.7)
@@ -299,10 +308,10 @@ def comp_v2_v3_RMSEs():
     """
     big_df = []
     for file in os.listdir('plots'):
-        v2_rmse = pd.read_csv('../NRFA_.2/RMSEs/keras_RMSE_'+file+'.csv',
-                             index_col=0)[['cal', 'val']]
-        v3_rmse = pd.read_csv('RMSEs/keras_RMSE_'+file+'.csv',
-                             index_col=0)[['cal', 'val']]
+        v2_rmse = pd.read_csv(f'../NRFA_.2/RMSEs/keras_RMSE_{file}.csv',
+                              index_col=0)[['cal', 'val']]
+        v3_rmse = pd.read_csv(f'RMSEs/keras_RMSE_{file}.csv',
+                              index_col=0)[['cal', 'val']]
         print(v3_rmse.mean().values, v2_rmse.mean().values)
         ratio = (v3_rmse.mean().values-v2_rmse.mean().values)/v2_rmse.mean().values*100
         
@@ -337,7 +346,8 @@ def qc_correction_stats():
 
         big.append([station, ch_sum, ch_a, ch_max])
     
-    big = pd.DataFrame(big, columns=['station', 'all_sum', 'top10_sum', 'all_max'])
+    big = pd.DataFrame(big,
+                       columns=['station', 'all_sum', 'top10_sum', 'all_max'])
     big.to_csv('meta/qc_correction_stats.csv', index=False)
 
 
@@ -346,7 +356,7 @@ def model_inp_subtables(station, n_inps):
     Inp feature tables w/ weights (importances).
     
     """
-    model_inps = pd.read_csv('_model_inps/'+station+'.csv')   
+    model_inps = pd.read_csv(f'_model_inps/{station}.csv')   
     stations = model_inps['colname'][:n_inps].astype(str)
     t_lag_max = 0
     
@@ -378,7 +388,7 @@ def model_inp_subtables(station, n_inps):
                                                 'feature_importance'].values
    
     st_map.loc[station, 0] = -1    
-    st_map.to_csv('_model_inps_subtable/'+station+'.csv', index=True)
+    st_map.to_csv(f'_model_inps_subtable/{station}.csv', index=True)
 
 # for st in os.listdir('plots'):
 #     model_inp_subtables(st, 20)
@@ -400,7 +410,7 @@ def xstations_ndata_nrfa():
         for j in np.arange(.1, 1.1, .1):
             x.merge_inps('MO', j)
             
-            x2 = pd.read_csv('data/level2/'+st_id+'/'+st_id+'.csv')
+            x2 = pd.read_csv(f'data/level2/{st_id}/{st_id}.csv')
             # ns.append([len(x.nearby_NRFA)+len(x.nearby_MORAIN), x2.shape[0]])
             ns.append(x2.shape[0])
         

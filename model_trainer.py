@@ -97,8 +97,8 @@ def model_trainer(IDS, dist,
     
         x.xgb_model_fit()
         x.xgb_plots()
-        x.RMSE().to_csv('RMSEs/xgb_RMSE_'+str(st_id)+'.csv')
-        x.xgb_reg.save_model('_models/'+str(st_id)+'/xgb.model')
+        x.RMSE().to_csv(f'RMSEs/xgb_RMSE_{st_id}.csv')
+        x.xgb_reg.save_model(f'_models/{st_id}/xgb.model')
     
         ''' __________________________ keras _____________________________ '''
         
@@ -131,7 +131,7 @@ def model_trainer(IDS, dist,
             y.columns = ['cal', 'val', 'test', 'rows', 'cols']
         
         # export fit & plots
-        y.to_csv('RMSEs/keras_RMSE_'+str(st_id)+'.csv')
+        y.to_csv(f'RMSEs/keras_RMSE_{st_id}.csv')
         x.keras_plots()
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ def xgbsearch_fit_sep():
         ax.set_xticklabels(sub.loc['inp_opt'].str[:] + ' ' + sub.loc['range_opt'].str[:]
                            + ' ' + sub.loc['range_dist'].str[:2] + 'km ' 
                            + sub.loc['cols_sub'].str[:] + 'inp')
-        plt.savefig('GS/plots/'+c_station+'.png')
+        plt.savefig(f'GS/plots/{c_station}.png')
         plt.close()
 
 
@@ -110,16 +110,16 @@ def presentation_plot_fit_xgb():
             continue
         
         xgb_reg = xgb.XGBRegressor()
-        xgb_reg.load_model('_models/'+station+'/xgb.model')
+        xgb_reg.load_model(f'_models/{station}/xgb.model')
         # print(station, 'loaded (xgb)')
         
-        scaler_inp = joblib.load('_models/'+station+'/scaler99.pkl')
+        scaler_inp = joblib.load(f'_models/{station}/scaler99.pkl')
         
         # data
-        c_inp = pd.read_csv('data/level2/'+station+'/'+station+'_inp.csv',
-                             index_col=0)
-        c_exp = pd.read_csv('data/level2/'+station+'/'+station+'_exp.csv',
-                             index_col=0).values[:, 0]
+        c_inp = pd.read_csv(f'data/level2/{station}/{station}_inp.csv',
+                            index_col=0)
+        c_exp = pd.read_csv(f'data/level2/{station}/{station}_exp.csv',
+                            index_col=0).values[:, 0]
         
         if len(c_exp) == 0:
             continue
@@ -152,10 +152,10 @@ def presentation_plot_fit_xgb_retrain():
             continue
         
         # data
-        c_inp = pd.read_csv('data/level2/'+station+'/'+station+'_inp.csv',
-                             index_col=0)
-        c_exp = pd.read_csv('data/level2/'+station+'/'+station+'_exp.csv',
-                             index_col=0).values[:, 0]
+        c_inp = pd.read_csv(f'data/level2/{station}/{station}_inp.csv',
+                            index_col=0)
+        c_exp = pd.read_csv(f'data/level2/{station}/{station}_exp.csv',
+                            index_col=0).values[:, 0]
         
         if len(c_exp) == 0:
             continue

@@ -114,10 +114,10 @@ class NRFA:
         self.station_ids = x['station-ids']
         
         if self.station_id in str(self.station_ids):
-            print('\n\nstation id ok ('+str(station_id)+')\n')
+            print('\n\n', f'station id ok ({station_id})', '\n')
             
             #  set base location 
-            web_service_stinfo = 'station-info?station='+self.station_id+'&format=json-object'
+            web_service_stinfo = f'station-info?station={self.station_id}&format=json-object'
             fields = '&fields=all'
             y = requests.get(self.root+web_service_stinfo+fields).json()
             
@@ -138,7 +138,7 @@ class NRFA:
         # NRFA meta:
         nrfa_mt = []
         for i in self.station_ids:
-            web_service_stinfo = 'station-info?station='+str(i)+'&format=json-object'
+            web_service_stinfo = f'station-info?station={i}&format=json-object'
             fields = '&fields=easting,northing'
             y = requests.get(self.root+web_service_stinfo+fields).json()
             
@@ -193,7 +193,7 @@ class NRFA:
         self.nearby_NRFA = []
 
         if thr_NRFA != 'catch':
-            print('identifying NRFA stations within', thr_NRFA/1000, 'km radius')
+            print(f'identifying NRFA stations within {thr_NRFA/1000} km radius')
             for i in meta_NRFA.index:
                 east = meta_NRFA['easting'].loc[i]
                 north = meta_NRFA['northing'].loc[i]
@@ -208,8 +208,8 @@ class NRFA:
                 if (str(i)[:2] == self.station_id[:2]) and (len(str(i)) == len(self.station_id)):
                     self.nearby_NRFA.append(str(i))                       
             
-        print('stations found:', self.nearby_NRFA, '\n')
-        print('identifying EA gauges within', thr_EA/1000, 'km radius')
+        print(f'stations found: {self.nearby_NRFA}', '\n')
+        print(f'identifying EA gauges within {thr_EA/1000} km radius')
         
         # EA rainfall gauges
         self.EA_RG_meta = pd.read_csv('meta/COSMOS_meta_updated.csv')
@@ -230,11 +230,11 @@ class NRFA:
                 self.nearby_NHA.append(self.EA_RG_meta['NHA_ID'].loc[i])
                 self.nearby_EA.append(self.EA_RG_meta['API_ID'].loc[i])
             
-        print('gauges found:', self.nearby_NHA, '\n')
-        #print('EA ids:', self.nearby_EA, '\n')
+        print(f'gauges found: {self.nearby_NHA}', '\n')
+        #print(f'EA ids: {self.nearby_EA}', '\n')
         
         # MORAIN
-        print('identifying MORAIN gauges within', thr_MO/1000, 'km radius')
+        print(f'identifying MORAIN gauges within {thr_MO/1000} km radius')
         meta_MORAIN = pd.read_csv('meta/MORAIN_meta_upd.csv')
         
         self.nearby_MORAIN = []
@@ -245,7 +245,7 @@ class NRFA:
                            (north-self.north)*(north-self.north) )
             if dist < thr_MO:
                 self.nearby_MORAIN.append(str(meta_MORAIN['ID'].loc[i]))
-        print('gauges found:', self.nearby_MORAIN, '\n')
+        print(f'gauges found: {self.nearby_MORAIN}', '\n')
     
     
     def set_ids_updwnstream(self, dist=0):
@@ -285,7 +285,7 @@ class NRFA:
 
         """
         NRFA_ids = []
-        for file in os.listdir('data/nrfa_raw/'+self.station_id):
+        for file in os.listdir(f'data/nrfa_raw/{self.station_id}'):
             # print(file)
             NRFA_ids.append(file[5:10])
         
@@ -309,7 +309,7 @@ class NRFA:
         data = pd.DataFrame()
         for i in self.nearby_NRFA:
             web_service_tseries = 'time-series?format=json-object'            
-            data_type = '&data-type=gdf&station='+str(i)           
+            data_type = f'&data-type=gdf&station={i}'          
             z = requests.get(self.root+web_service_tseries+data_type).json()
             
             cur_dt = pd.DataFrame({str(i): z['data-stream'][1::2]}, index=z['data-stream'][::2])
@@ -318,9 +318,9 @@ class NRFA:
         data.index = pd.to_datetime(data.index)
         data = data.sort_index()
             
-        if not os.path.exists('data/level1/'+self.station_id):
-            os.mkdir('data/level1/'+self.station_id)
-        data.to_csv('data/level1/'+self.station_id+'/'+self.station_id+'_NRFA.csv')
+        if not os.path.exists(f'data/level1/{self.station_id}'):
+            os.mkdir(f'data/level1/{self.station_id}')
+        data.to_csv(f'data/level1/{self.station_id}/{self.station_id}_NRFA.csv')
         
     
     def fetch_agg_EA(self):
@@ -334,7 +334,7 @@ class NRFA:
         if len(self.nearby_NHA) != 0:
             # load gauges df
             for gauge in self.nearby_NHA:
-                gf = pd.read_csv('../EA_data/EA_rainfall_30min_agg/'+gauge+'.csv',
+                gf = pd.read_csv(f'../EA_data/EA_rainfall_30min_agg/{gauge}.csv',
                                  skiprows=5, header=None)
                 gf.columns=['date', gauge, 'note']
                 gf['date'] = pd.to_datetime(gf['date'], format='%Y%m%d%H%M%S')
@@ -360,11 +360,11 @@ class NRFA:
             #print(gf_df)
                 
         # export
-        if not os.path.exists('data/level1/'+self.station_id):
-            os.mkdir('data/level1/'+self.station_id)
+        if not os.path.exists(f'data/level1/{self.station_id}'):
+            os.mkdir(f'data/level1/{self.station_id}')
     
         gf_df[gf_df < 0] = np.nan
-        gf_df.to_csv('data/level1/'+self.station_id+'/'+self.station_id+'_EA.csv')
+        gf_df.to_csv(f'data/level1/{self.station_id}/{self.station_id}_EA.csv')
       
         
     def fetch_MO(self):
@@ -378,7 +378,7 @@ class NRFA:
             # load gauges df
             morain_ids = self.nearby_MORAIN.copy()
             for gauge in morain_ids:
-                gf = pd.read_csv('data/morain_raw/data/'+str(gauge)+'.csv',
+                gf = pd.read_csv(f'data/morain_raw/data/{gauge}.csv',
                                  index_col=0)
                 gf.columns = [str(gauge)]
                 gf.index = pd.to_datetime(gf.index)
@@ -392,11 +392,11 @@ class NRFA:
                                          how='outer')
                 else: 
                     self.nearby_MORAIN.remove(str(gauge))
-                    print(gauge, 'excluded for duplicate dates')
+                    print(f'{gauge} excluded for duplicate dates')
                     
         # export
-        if not os.path.exists('data/level1/'+self.station_id):
-            os.mkdir('data/level1/'+self.station_id)
+        if not os.path.exists(f'data/level1/{self.station_id}'):
+            os.mkdir(f'data/level1/{self.station_id}')
     
                 
         # drop duplicate indices ~ some stations 2 values for the same day?
@@ -405,7 +405,7 @@ class NRFA:
         
         gf_df[gf_df < 0] = np.nan
         # print(gf_df.columns.values)
-        gf_df.to_csv('data/level1/'+self.station_id+'/'+self.station_id+'_MO.csv')
+        gf_df.to_csv(f'data/level1/{self.station_id}/{self.station_id}_MO.csv')
  
     ''' ___________________________ / DATA _______________________________ '''       
         
@@ -428,11 +428,11 @@ class NRFA:
 
         """
         if src == 'EA':
-            data_EA = pd.read_csv('data/level1/'+self.station_id+'/'+self.station_id+'_EA.csv',
+            data_EA = pd.read_csv(f'data/level1/{self.station_id}/{self.station_id}_EA.csv',
                                   index_col=0, header=0)
             self.nearby_NHA = list(data_EA.columns)
         elif src == 'MO':
-            data_EA = pd.read_csv('data/level1/'+self.station_id+'/'+self.station_id+'_MO.csv',
+            data_EA = pd.read_csv(f'data/level1/{self.station_id}/{self.station_id}_MO.csv',
                                   index_col=0, header=0)
             self.nearby_MORAIN = list(data_EA.columns)
         else:
@@ -440,7 +440,7 @@ class NRFA:
             self.nearby_MORAIN = []
             self.nearby_EA = []
             
-        data_NRFA = pd.read_csv('data/level1/'+self.station_id+'/'+self.station_id+'_NRFA.csv',
+        data_NRFA = pd.read_csv(f'data/level1/{self.station_id}/{self.station_id}_NRFA.csv',
                                 index_col=0, header=0)
         self.nearby_NRFA = list(data_NRFA.columns)
         
@@ -463,19 +463,19 @@ class NRFA:
                 # remove station from inp list
                 if i in self.nearby_NRFA:
                     self.nearby_NRFA.remove(i)
-                    print(i, 'removed (NRFA)')
+                    print(f'{i} removed (NRFA)')
                 elif (src == 'EA') and (i in self.nearby_NHA):
                     self.nearby_NHA.remove(i) 
-                    print(i, 'removed (NHA)')
+                    print(f'{i} removed (NHA)')
                 elif (src == 'MO') and (i in self.nearby_MORAIN):
                     self.nearby_MORAIN.remove(i)
-                    print(i, 'removed (MO)')
+                    print(f'{i} removed (MO)')
                 else:
-                    print(i, 'removed (!? not in self.nearby_xxx !?)')
+                    print(f'{i} removed (!? not in self.nearby_xxx !?)')
 
                         
-        if not os.path.exists('data/level2/'+self.station_id):
-            os.mkdir('data/level2/'+self.station_id)
+        if not os.path.exists(f'data/level2/{self.station_id}'):
+            os.mkdir(f'data/level2/{self.station_id}')
         
         # remove incomplete days
         #
@@ -488,10 +488,11 @@ class NRFA:
             print('\n !empty merged df')
         else:
             self.empty_merged_df = False
-            print('\n ', merged.index[0], ' - ', merged.index[-1], '\n')
-            print('merged inps: ', merged.columns.values)
+            print('\n', f'{merged.index[0]} - {merged.index[-1]}', '\n')
+            print(f'merged inps: {merged.columns.values}')
                 
-        merged.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv')
+        merged.to_csv(f'data/level2/{self.station_id}/{self.station_id}_merged.csv')
+        print(merged)
 
 
     def timelag_inps(self, t_x, lag_opt, src='MO'):
@@ -509,7 +510,7 @@ class NRFA:
             Rainfall data source ['EA', 'MO']. The default is 'MO'.
 
         """
-        data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
+        data = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_merged.csv',
                            index_col=0, header=0)
         skip_lagging = 0
         
@@ -543,7 +544,7 @@ class NRFA:
             print('invalid lag_opt\n')
             return
         
-        print('inps to lag: ', inps_to_lag)
+        print(f'inps to lag: {inps_to_lag}')
         
         # if no stations/gauges for current lag_opt
         if (t_x == 0) or (len(inps_to_lag) == 0):
@@ -574,7 +575,7 @@ class NRFA:
             
             # elif gaps found
             else:
-                print('gaps found:  ', td[td.days > 1].shape[0], '\n')
+                print(f'gaps found: {td[td.days>1].shape[0]}', '\n')
                 
                 # get gap indexes
                 pdtd = pd.DataFrame(td, columns=['td'])
@@ -637,8 +638,9 @@ class NRFA:
         self.col_labels = self.inp.columns
 
         # export 
-        self.inp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp.csv')
-        self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp.csv', header=True)
+        self.inp.to_csv(f'data/level2/{self.station_id}/{self.station_id}_inp.csv')
+        self.exp.to_csv(f'data/level2/{self.station_id}/{self.station_id}_exp.csv',
+                        header=True)
     
 
     def merge_timelag_inps_subset(self, n_t_xs, src='MO'):
@@ -679,17 +681,17 @@ class NRFA:
         #   load level1 data from *src
         #   -> ¬data
         if src == 'EA':
-            data_EA = pd.read_csv('data/level1/'+self.station_id+'/'+self.station_id+'_EA.csv',
+            data_EA = pd.read_csv(f'data/level1/{self.station_id}/{self.station_id}_EA.csv',
                                   index_col=0, header=0)
         elif src == 'MO':
-            data_EA = pd.read_csv('data/level1/'+self.station_id+'/'+self.station_id+'_MO.csv',
+            data_EA = pd.read_csv(f'data/level1/{self.station_id}/{self.station_id}_MO.csv',
                                   index_col=0, header=0)
         else:
             data_EA = pd.DataFrame()
             self.nearby_MORAIN = []
             self.nearby_EA = []
             
-        data_NRFA = pd.read_csv('data/level1/'+self.station_id+'/'+self.station_id+'_NRFA.csv',
+        data_NRFA = pd.read_csv(f'data/level1/{self.station_id}/{self.station_id}_NRFA.csv',
                                 index_col=0, header=0)
         
         if not data_EA.empty: 
@@ -707,7 +709,7 @@ class NRFA:
         # GAPS:
         #
         td = pd.to_datetime(data.index[1:].values) - pd.to_datetime(data.index[:-1].values)
-        print(td[td.days > 1].shape[0], 'gaps found\n')
+        print(f'{td[td.days>1].shape[0]} gaps found', '\n')
         
         # get gap indices
         pdtd = pd.DataFrame(td, columns=['td'])
@@ -776,8 +778,9 @@ class NRFA:
         self.col_labels = self.inp.columns
 
         # export 
-        self.inp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_inp.csv')
-        self.exp.to_csv('data/level2/'+self.station_id+'/'+self.station_id+'_exp.csv', header=True)
+        self.inp.to_csv(f'data/level2/{self.station_id}/{self.station_id}_inp.csv')
+        self.exp.to_csv(f'data/level2/{self.station_id}/{self.station_id}_exp.csv',
+                        header=True)
 
 
     def scale_split_traintest(self, n_traintest_split=400, ratio_calval_split=.25):
@@ -798,7 +801,7 @@ class NRFA:
         self.test_split = True if n_traintest_split != 0 else False
 
         if not self.data_loaded:
-            data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
+            data = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_merged.csv',
                                index_col=0, header=0)
     
             self.exp = data[self.station_id]
@@ -859,7 +862,7 @@ class NRFA:
         self.test_split = False
 
         if not self.data_loaded:
-            data = pd.read_csv('data/level2/'+self.station_id+'/'+self.station_id+'_merged.csv',
+            data = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_merged.csv',
                                index_col=0, header=0)
     
             self.exp = data[self.station_id]
@@ -903,13 +906,13 @@ class NRFA:
         """
         # export scaler
         if out_id != -1:
-            if not os.path.exists('_models/'+self.station_id):
-                os.mkdir('_models/'+self.station_id)
+            if not os.path.exists(f'_models/{self.station_id}'):
+                os.mkdir(f'_models/{self.station_id}')
                 
-            joblib.dump(self.scaler_inp, '_models/'+self.station_id+'/scaler'+str(out_id)+'.pkl')
+            joblib.dump(self.scaler_inp, f'_models/{self.station_id}/scaler{out_id}.pkl')
         
         # export model
-        self.model.save('_models/'+self.station_id+'/mod'+str(out_id)+'.h5')
+        self.model.save(f'_models/{self.station_id}/mod{out_id}.h5')
             
     ''' ______________________ / PREPROCESSING ___________________________ '''   
         
@@ -990,17 +993,17 @@ class NRFA:
         Export keras ts/sc plots.
         
         """
-        if not os.path.exists('plots/'+self.station_id):
-            os.mkdir('plots/'+self.station_id)
-        if not os.path.exists('plots/'+self.station_id+'/keras/'):
-            os.mkdir('plots/'+self.station_id+'/keras/')
+        if not os.path.exists(f'plots/{self.station_id}'):
+            os.mkdir(f'plots/{self.station_id}')
+        if not os.path.exists(f'plots/{self.station_id}/keras'):
+            os.mkdir(f'plots/{self.station_id}/keras')
 
         # plot cal (big)
         plt.figure(figsize=(100, 10))
         plt.plot(self.y_cal.values, label='obs')
         plt.plot(self.y_mod_cal, label='mod')
         plt.legend()
-        plt.savefig('plots/'+self.station_id+'/keras/cal.png', dpi=300)
+        plt.savefig(f'plots/{self.station_id}/keras/cal.png', dpi=300)
         plt.close()
 
         # plot val (big)
@@ -1008,14 +1011,14 @@ class NRFA:
         plt.plot(self.y_val.values, label='obs')
         plt.plot(self.y_mod_val, label='mod')
         plt.legend()
-        plt.savefig('plots/'+self.station_id+'/keras/val.png', dpi=300)
+        plt.savefig(f'plots/{self.station_id}/keras/val.png', dpi=300)
         plt.close()
         
         # plot learning history
         plt.plot(self.history.history['loss'], label='cal')
         plt.plot(self.history.history['val_loss'], label='val')
         plt.legend()
-        plt.savefig('plots/'+self.station_id+'/keras/history.png', dpi=300)
+        plt.savefig(f'plots/{self.station_id}/keras/history.png', dpi=300)
         plt.close()
         
     ''' _________________________ / KERAS ________________________________ '''
@@ -1065,10 +1068,10 @@ class NRFA:
 
         """
         # check for directories
-        if not os.path.exists('plots/'+self.station_id):
-            os.mkdir('plots/'+self.station_id)
-        if not os.path.exists('plots/'+self.station_id+'/xgb/'):
-            os.mkdir('plots/'+self.station_id+'/xgb/')
+        if not os.path.exists(f'plots/{self.station_id}'):
+            os.mkdir(f'plots/{self.station_id}')
+        if not os.path.exists(f'plots/{self.station_id}/xgb'):
+            os.mkdir(f'plots/{self.station_id}/xgb')
                 
         # timeseries plot cal/cal
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(80, 10), sharey=True, dpi=300)
@@ -1077,7 +1080,7 @@ class NRFA:
         ax1.legend()
         ax2.plot(self.y_mod_cal-self.y_cal.values, label='residuals')
         ax2.legend()
-        plt.savefig('plots/'+self.station_id+'/xgb/ts_cal.png')
+        plt.savefig(f'plots/{self.station_id}/xgb/ts_cal.png')
         plt.close()
         
         # scatter plot val/val
@@ -1085,7 +1088,7 @@ class NRFA:
         plt.scatter(self.y_cal, self.y_mod_cal, marker='x')
         plt.xlim(0,  max(self.y_cal))
         plt.ylim(0, max(self.y_cal))
-        plt.savefig('plots/'+self.station_id+'/xgb/sc_cal.png')
+        plt.savefig(f'plots/{self.station_id}/xgb/sc_cal.png')
         plt.close()
         
         # timeseries plot val/val
@@ -1095,7 +1098,7 @@ class NRFA:
         ax1.legend()
         ax2.plot(self.y_mod_val-self.y_val.values, label='residuals')
         ax2.legend()
-        plt.savefig('plots/'+self.station_id+'/xgb/ts_val.png')
+        plt.savefig(f'plots/{self.station_id}/xgb/ts_val.png')
         plt.close()
         
         # scatter plot val/val
@@ -1103,7 +1106,7 @@ class NRFA:
         plt.scatter(self.y_val, self.y_mod_val, marker='x')
         plt.xlim(0,  max(self.y_val))
         plt.ylim(0, max(self.y_val))
-        plt.savefig('plots/'+self.station_id+'/xgb/sc_val.png')
+        plt.savefig(f'plots/{self.station_id}/xgb/sc_val.png')
         plt.close()
         
         # tree feature importance 
@@ -1117,7 +1120,7 @@ class NRFA:
         
         ax.tick_params(axis='both', which='major', labelsize=4)
         ax.tick_params(axis='both', which='minor', labelsize=3)
-        plt.savefig('plots/'+self.station_id+'/xgb/tree.png', dpi=300, max_num_features=10)
+        plt.savefig(f'plots/{self.station_id}/xgb/tree.png', dpi=300, max_num_features=10)
         plt.close()
     
     ''' ________________________ / XGBoost _______________________________ '''
@@ -1153,8 +1156,8 @@ class NRFA:
             if i in api_ids['id'].values:
                 self.nearby_NHA.append(i)
         
-        print('nearby EA gauges:', self.nearby_EA, '\n')
-        print('present on API (NHA ID):', self.nearby_NHA, '\n')
+        print(f'nearby EA gauges: {self.nearby_EA}', '\n')
+        print(f'present on API (NHA ID): {self.nearby_NHA}', '\n')
 
     ''' ________________________ / helpers _______________________________ '''
     

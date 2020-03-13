@@ -22,7 +22,7 @@ def extract_data():
         cur_mor['DAY'] = pd.to_datetime(cur_mor['DAY'], format='%d-%b-%y')
         cur_mor.loc[cur_mor['DAY'].dt.year >= 2020, 'DAY'] -= pd.DateOffset(years=100)
         cur_mor = cur_mor.sort_values('DAY')
-        cur_mor.to_csv('data/morain/data/'+str(id_)+'.csv', index=False)
+        cur_mor.to_csv(f'data/morain/data/{id_}.csv', index=False)
 
 
 def merge_data_meta():
@@ -123,7 +123,8 @@ def MO_EA_mapping_dist():
     """
     meta_MO = pd.read_csv('meta/MORAIN_meta.csv', header=0)
     meta_EA = pd.read_csv('meta/EA_API_meta.csv', header=0)
-    id_corr = pd.read_excel('meta/EA_MO_station_ids/Rainfall API ID Lookup_NR Version.xlsx', header=0)
+    id_corr = pd.read_excel('meta/EA_MO_station_ids/Rainfall API ID Lookup_NR Version.xlsx',
+                            header=0)
     
     mEA = meta_EA #.sort_values('easting', ascending=True)[:100]
     
