@@ -43,7 +43,6 @@ def fetch_NRFA_local_2019(station_id):
     if not os.path.exists(f'data/level1/{station_id}'):
         os.mkdir(f'data/level1/{station_id}')
 
-    #bigf.to_csv('data/_NRFA_qc/data/'+str(station_id)+'/'+str(station_id)+'_NRFA.csv')
     bigf = bigf.sort_index()
     bigf.to_csv(f'data/level1/{station_id}/{station_id}_NRFA.csv')
 

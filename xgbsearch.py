@@ -9,7 +9,8 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 ''' __________________________ xgbsearch _________________________________ '''
 
-def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, lr=0.0001, ep=10000):
+def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, inp_thresh,
+              max_timelag, xgb_sub_n, runs, lr=0.0001, ep=10000):
     """
     Gridsearch for best NN parameters ~ fit. 
     
@@ -30,6 +31,10 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
         distance from target NRFA station
     inp_opts : list [str]
         input rainfall data src ['MO', 'NRFA_only']
+    inp_thresh : float
+        input data completeness threshold (to be included) ~ taget station
+    max_timelag : int
+        max t-x timelag
     xgb_sub_n : list [int]
         input feature subsetting 
     runs : int
@@ -51,7 +56,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
         # init NRFA instance and fetch (NRFA, EA nad MO) ids
         x = nrfa.NRFA(station_id)
         
-        # ___________________________ level1 ____________________________
+        """ __________________________ level1 ____________________________ """
         
         # for inp_opt in inp_opts:
         for range_radius in np.arange(range_rad_m[0], range_rad_m[1], range_rad_m[2]):
@@ -66,12 +71,12 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                 x.fetch_NRFA()
                 x.fetch_MO()
                 
-                # ____________________ level2 ___________________________
+                """ ____________________ level2 __________________________ """
                 
                 for inp_opt in inp_opts:
                     # merge current inps
                     # out: lvl2 raw
-                    x.merge_inps(inp_opt, ratio=.95)
+                    x.merge_inps(inp_opt, ratio=inp_thresh)
                             
                     # skip if empty merged df
                     if x.empty_merged_df:
@@ -80,7 +85,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                             
                     # timelag merged inps
                     # out: lvl2 inp/exp
-                    x.timelag_inps(5, 'all', inp_opt)
+                    x.timelag_inps(max_timelag, 'all', inp_opt)
                     
                     # skip if inp empty 
                     # (~when t-x=0 and only 1 inp(=exp))
@@ -88,10 +93,10 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
                         print('skipping empty inp')
                         continue
                     
-                    # __________________ ML _____________________________
+                    """ __________________ ML ____________________________ """
                     
                     # fit xgb for feature imps subsetting    
-                    x.scale_split_traintest(n_traintest_split=0)  
+                    x.scale_split_traintest(n_traintest_split=0)
                     x.xgb_model_fit()
     
                     for xgb_sub in ([-1]+xgb_sub_n):
@@ -115,7 +120,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
     
                         # xgb inp subsetting
                         if xgb_sub > 0:
-                            x.merge_timelag_inps_subset(xgb_sub, 'MO')     
+                            x.merge_timelag_inps_subset(xgb_sub, 'MO')
                         
                         # append total available n_rows for current subset
                         c_pars.extend([x.inp.shape[0], x.inp.shape[1]])
@@ -178,34 +183,22 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, xgb_sub_n, runs, l
 
 # station_ids, range_opts, range_rad_m, xgb_sub_n, runs
 
-# xgbsearch(['49006'],
+# xgbsearch(['45001'],
 #           ['radius', 'updwn'],
-#           [20, 51, 10],
+#           [30, 51, 20],
 #           ['MO', 'NRFA_only'],
-#           [20, 30, 40],
+#           .8,
+#           5,
+#           [16, 32],
 #           5,
 #           lr=0.0001,
 #           ep=10000)
 
 
-
-# xgbsearch(['45001'],
-#           ['radius', 'updwn'],
-#           50001,
-#           ['NRFA_only', 'MO'],
-#           [10, 20, 30],
-#           2,
-#           lr=0.0001,
-#           ep=10000)
-
-
-
 '''
-23011, 28015, 28022, 28044, 29002, 30002, 32008, 33013, 33066, 
+            23011, 28015, 28022, 28044, 29002, 30002, 32008, 33013, 33066, 
             34010, 34012, 34018, 35003, 37008, 38003, 38029, 39001, 39026,
             39056, 39065, 39125, 40017, 45001, 46005, 46014, 47006, 47019,
             48001, 49006, 52010, 54017, 54057, 54110, 75017, 76017, 76021
-            
-            , 'updwn'
             
 '''

@@ -3,32 +3,34 @@ import matplotlib.pyplot as plt
 import os
 
 
-dt = pd.read_csv('GS/xgbsearch.csv', index_col=1).drop('Unnamed: 0', axis=1)
 
 ''' ___________________________ PLOTS ___________________________________ '''
 
-def xgbsearch_fit_sep():
+def xgbsearch_fit_sep(station_id, metric):
     """
     Plot fit stats for xgbsearched par combinations for each station 
     separately.
 
     """
-    for c_station in dt.loc['station'].unique():
-        sub = dt.loc[:, dt.loc['station'] == c_station]
-        sub = sub.dropna(thresh=1, axis=0)
-        
-        sub = sub.sort_values('NSE_val_NN_avg', axis=1)
-        
-        ax = sub.loc[['NSE_cal_NN_avg', 'NSE_val_NN_avg']].astype(float).T.plot.bar(figsize=(25, 20))
-        # plt.plot(sub.loc[['NSE_cal_NN_avg', 'NSE_val_NN_avg']].astype(float).T)
-        ax.set_xticklabels(sub.loc['inp_opt'].str[:] + ' ' + sub.loc['range_opt'].str[:]
-                           + ' ' + sub.loc['range_dist'].str[:2] + 'km ' 
-                           + sub.loc['cols_sub'].str[:] + 'inp')
-        plt.savefig(f'GS/plots/{c_station}.png')
-        plt.close()
+    dt = pd.read_csv(f'GS/xgbsearch_{station_id}.csv', index_col=1).drop('Unnamed: 0', axis=1)
+    
+    # sub = dt.loc[:, dt.loc['station'] == c_station]
+    # sub = sub.dropna(thresh=1, axis=0)
+    
+    asc = True if metric == 'NSE' else False
+    dt = dt.sort_values(f'{metric}_val_NN_avg', axis=1,
+                        ascending=asc)
+    
+    ax = dt.loc[[f'{metric}_cal_NN_avg', f'{metric}_val_NN_avg']].astype(float).T.plot.bar(figsize=(25, 20))
+    # plt.plot(sub.loc[['NSE_cal_NN_avg', 'NSE_val_NN_avg']].astype(float).T)
+    ax.set_xticklabels(dt.loc['inp_opt'].str[:] + ' ' + dt.loc['range_opt'].str[:]
+                       + ' ' + dt.loc['range_dist'].str[:2] + 'km ' 
+                       + dt.loc['cols_sub'].str[:] + 'inp')
+    plt.savefig(f'GS/plots/{station_id}_{metric}.png')
+    plt.close()
 
 
-def xgbsearch_fit_comb():
+def xgbsearch_fit_comb(metric):
     """
     Plot averaged fit stats for xgbsearched par combinations for all stations
     combined.
@@ -38,12 +40,18 @@ def xgbsearch_fit_comb():
     
     big = pd.DataFrame()
     
-    for c_station in dt.loc['station'].unique():
-        sub = dt.loc[:, dt.loc['station'] == c_station]
-        sub = sub.dropna(thresh=1, axis=0)
+    for file in os.listdir('GS/'):
+        if file[-4:] == '.csv':
+            station_id = file[10:15]
+            print(station_id)
+        else:
+            continue
+        
+        dt = pd.read_csv(f'GS/xgbsearch_{station_id}.csv',
+                         index_col=1).drop('Unnamed: 0', axis=1)
     
-        headers = sub.loc[header_vars]
-        vals = sub.iloc[-4:].astype(float)   
+        headers = dt.loc[header_vars]
+        vals = dt.iloc[-4:].astype(float)   
         
         headers.columns = range(headers.shape[1])
         vals.columns = range(vals.shape[1])
@@ -55,16 +63,17 @@ def xgbsearch_fit_comb():
     
     big.iloc[-4:] = big.iloc[-4:]/len(dt.loc['station'].unique())
     big = headers.append(big)
-    
-    
-    big = big.sort_values('NSE_val_NN_avg', axis=1)
-    
-    ax = sub.loc[['NSE_cal_NN_avg', 'NSE_val_NN_avg']].astype(float).T.plot.bar(figsize=(25, 20))
+
+    asc = True if metric == 'NSE' else False
+    big = big.sort_values(f'{metric}_val_NN_avg', axis=1,
+                          ascending=asc)
+
+    ax = big.loc[[f'{metric}_cal_NN_avg', f'{metric}_val_NN_avg']].astype(float).T.plot.bar(figsize=(25, 20))
     # plt.plot(sub.loc[['NSE_cal_NN_avg', 'NSE_val_NN_avg']].astype(float).T)
-    ax.set_xticklabels(sub.loc['inp_opt'].str[:] + ' ' + sub.loc['range_opt'].str[:]
-                       + ' ' + sub.loc['range_dist'].str[:2] + 'km ' 
-                       + sub.loc['cols_sub'].str[:] + 'inp')
-    plt.savefig('GS/plots/big.png')
+    ax.set_xticklabels(big.loc['inp_opt'].str[:] + ' ' + big.loc['range_opt'].str[:]
+                       + ' ' + big.loc['range_dist'].str[:2] + 'km ' 
+                       + big.loc['cols_sub'].str[:] + 'inp')
+    plt.savefig(f'GS/plots/big_{metric}.png')
     plt.close()
     
   
@@ -198,3 +207,184 @@ def presentation_plot_fit_xgb_retrain():
     plt.close()
 
 ''' __________________________ / PLOTS __________________________________ '''
+
+
+
+# for file in os.listdir('GS/'):
+#     if file[-4:] == '.csv':
+#         for opt in ['NSE', 'nRMSE']:
+#             xgbsearch_fit_sep(file[10:15], opt)
+
+
+# xgbsearch_fit_comb('nRMSE')
+
+
+
+
+
+def postproc(path, metric, thr):
+    header_vars = ['station', 'range_opt', 'range_dist', 'inp_opt', 'cols_sub']
+
+    big = pd.DataFrame()
+    for file in os.listdir(path):
+        if file[-4:] == '.csv':
+            station_id = file[10:15]
+            print(station_id)
+        else:
+            print(f'skip {path}/{file}')
+            continue
+        
+        dt = pd.read_csv(f'{path}/{file}',
+                         index_col=1).drop('Unnamed: 0', axis=1)    
+        
+        headers = dt.loc[header_vars]
+        vals = dt.iloc[-4:].astype(float)  
+        print(headers)
+        headers.columns = range(headers.shape[1])
+        vals.columns = range(vals.shape[1])
+
+        asc = True if metric == 'NSE' else False
+        vals = vals.sort_values(f'{metric}_val_NN_avg', axis=1,
+                                ascending=asc)
+        
+        if asc:
+            thr_val = vals.loc[f'{metric}_val_NN_avg', vals.columns[-1]] - vals.loc[f'{metric}_val_NN_avg', vals.columns[-1]] * (thr)
+            subset = list(vals.columns[vals.loc[f'{metric}_val_NN_avg'] > thr_val])
+        else:
+            thr_val = vals.loc[f'{metric}_val_NN_avg', vals.columns[-1]] + vals.loc[f'{metric}_val_NN_avg', vals.columns[-1]] * (thr) 
+            subset = list(vals.columns[vals.loc[f'{metric}_val_NN_avg'] < thr_val])
+        print(subset)
+        
+        headers = headers[subset]
+        vals = vals[subset]
+        
+        big = pd.concat([big, headers], axis=1, ignore_index=True)
+        
+        ax = vals.loc[[f'{metric}_cal_NN_avg', f'{metric}_val_NN_avg']].astype(float).T.plot.bar(figsize=(25, 20))
+        # plt.plot(sub.loc[['NSE_cal_NN_avg', 'NSE_val_NN_avg']].astype(float).T)
+        ax.set_xticklabels(headers.loc['inp_opt'].str[:] + ' ' + headers.loc['range_opt'].str[:]
+                           + ' ' + headers.loc['range_dist'].str[:2] + 'km ' 
+                           + headers.loc['cols_sub'].str[:] + 'inp')
+        plt.savefig(f'GS/plots/{station_id}_{metric}.png')
+        plt.close()
+    
+    big.to_csv(f'{path}/plots/{metric}_{thr}_pars.csv')
+        
+        
+# postproc('GS', 'nRMSE', .1)
+
+
+def postprc(metric):
+    header_vars = ['range_opt', 'range_dist', 'inp_opt', 'cols_sub']
+    
+    big = pd.DataFrame()
+    files = 0
+    for file in os.listdir('GS/'):
+        if file[-4:] == '.csv':
+            station_id = file[10:15]
+            print(station_id)
+            files += 1
+        else:
+            continue
+        
+        dt = pd.read_csv(f'GS/xgbsearch_{station_id}.csv',
+                         index_col=1).drop('Unnamed: 0', axis=1)
+        
+        headers = dt.loc[header_vars]
+        vals = dt.iloc[-4:].astype(float)   
+        
+        headers.columns = range(headers.shape[1])
+        vals.columns = range(vals.shape[1])
+        
+        asc = True if metric == 'NSE' else False
+        vals = vals.sort_values(f'{metric}_val_NN_avg', axis=1,
+                                ascending=asc)
+        
+        if asc:        
+            base_cal = vals.loc[f'{metric}_cal_NN_avg'].max()
+            base_val = vals.loc[f'{metric}_val_NN_avg'].max()
+            
+            vals.loc['perc_cal'] = (base_cal - vals.loc[f'{metric}_cal_NN_avg'])/base_cal
+            vals.loc['perc_val'] = (base_val - vals.loc[f'{metric}_val_NN_avg'])/base_val
+        else:
+            base_cal = vals.loc[f'{metric}_cal_NN_avg'].min()
+            base_val = vals.loc[f'{metric}_val_NN_avg'].min()
+
+            vals.loc['perc_cal'] = (vals.loc[f'{metric}_cal_NN_avg'] - base_cal)/base_cal  
+            vals.loc['perc_val'] = (vals.loc[f'{metric}_val_NN_avg'] - base_val)/base_val  
+        
+        if big.empty:
+            big = vals.loc[['perc_cal', 'perc_val']].copy()
+        else:
+            big = big + vals.loc[['perc_cal', 'perc_val']]
+
+    big /= files
+    big = headers.append(big)
+    
+    big.sort_values('perc_val', axis=1, inplace=True, ascending=asc)
+    print(big)
+    big.to_csv('GS/plots/perc.csv')
+    
+    ax = big.loc[['perc_cal', 'perc_val']].astype(float).T.plot.bar(figsize=(25, 20))
+    # plt.plot(sub.loc[['NSE_cal_NN_avg', 'NSE_val_NN_avg']].astype(float).T)
+    ax.set_xticklabels(big.loc['inp_opt'].str[:] + ' ' + big.loc['range_opt'].str[:]
+                        + ' ' + big.loc['range_dist'].str[:2] + 'km ' 
+                        + big.loc['cols_sub'].str[:] + 'inp')
+    plt.savefig(f'GS/plots/perc.png')
+    plt.close()
+
+
+postprc('nRMSE')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ___________________________________________________________________ #
+
+def format_EA_ids_helper(x):
+    """
+    Helper function to format EA ids to capital letters and (atleast)
+    6 digit numeric codes.
+
+    """
+    if x != x.upper():
+        x = x.upper()
+    if len(x) < 6 and x.isdigit():
+       zrs = 6-len(x)
+       for i in range(zrs):
+           x = '0' + x
+    return x
+
+
+def EA_east_north_site_list_format(): 
+    x = pd.read_excel('EA_site_list.xlsx', header=None, dtype=str).drop_duplicates()
+    x = pd.DataFrame(x[0].apply(format_EA_ids_helper))
+    y = pd.read_csv('meta/COSMOS_meta_updated.csv', dtype=str)
+    
+    o = pd.merge(x, y, left_on=0, right_on='API_ID', how='outer', indicator=True).drop_duplicates()
+    ok = o[o['_merge'] == 'both']
+    l = o[o['_merge'] == 'left_only']
+    
+    out1 = ok[[0, 'easting', 'northing']].drop_duplicates()
+    
+    oo = pd.merge(l[[0]], y, left_on=0, right_on='NHA_ID', how='outer', indicator=True)
+    
+    ok = oo[oo['_merge'] == 'both']
+    l = oo[oo['_merge'] == 'left_only']
+    
+    out2 = ok[[0, 'easting', 'northing']].drop_duplicates()
+    
+    out = pd.concat([out1, out2], ignore_index=True)
+    out.columns = ['id', 'easting', 'northing']
+    out.to_csv('EA_site_list_east_north.csv', index=False)

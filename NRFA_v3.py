@@ -189,7 +189,7 @@ class NRFA:
         thr_MO *= 1000
            
         # NRFA station ids within *thr m
-        meta_NRFA = pd.read_csv('meta/NRFA_meta.csv')        
+        meta_NRFA = pd.read_csv('meta/NRFA_meta_gdfliveonly_format.csv')        
         self.nearby_NRFA = []
 
         if thr_NRFA != 'catch':
@@ -260,8 +260,10 @@ class NRFA:
             The default is 0.
 
         """
-        meta = pd.read_excel('stations_upstream_downstream/nrfa_nearest_sites.xlsx',
-                             sheet_name='nrfa_nearest_sites')
+        # meta = pd.read_excel('stations_upstream_downstream/nrfa_nearest_sites.xlsx',
+        #                      sheet_name='nrfa_nearest_sites')
+        
+        meta = pd.read_csv('meta/NRFA_meta_gdfliveonly_format_updwnstream.csv')
         
         sub_dt = meta[meta['station'] == int(self.station_id)]
         
@@ -299,7 +301,7 @@ class NRFA:
         
     ''' _____________________________ DATA _______________________________ '''
        
-    def fetch_NRFA(self):  
+    def fetch_NRFA(self, src):  
         """
         Fetch idetified NRFA historical flows from the API and export
         to level1.
@@ -309,7 +311,7 @@ class NRFA:
         data = pd.DataFrame()
         for i in self.nearby_NRFA:
             web_service_tseries = 'time-series?format=json-object'            
-            data_type = f'&data-type=gdf&station={i}'          
+            data_type = f'&data-type={src}&station={i}'          
             z = requests.get(self.root+web_service_tseries+data_type).json()
             
             cur_dt = pd.DataFrame({str(i): z['data-stream'][1::2]}, index=z['data-stream'][::2])
@@ -317,12 +319,11 @@ class NRFA:
             
         data.index = pd.to_datetime(data.index)
         data = data.sort_index()
-            
+        
         if not os.path.exists(f'data/level1/{self.station_id}'):
             os.mkdir(f'data/level1/{self.station_id}')
         data.to_csv(f'data/level1/{self.station_id}/{self.station_id}_NRFA.csv')
         
-    
     def fetch_agg_EA(self):
         """
         Fetch (local) identified EA gauge rainfall and aggregate to daily
@@ -800,12 +801,14 @@ class NRFA:
         """
         self.test_split = True if n_traintest_split != 0 else False
 
-        if not self.data_loaded:
-            data = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_merged.csv',
-                               index_col=0, header=0)
+        # load data here
+        #
+        # if not self.data_loaded:
+        #     data = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_merged.csv',
+        #                         index_col=0, header=0)
     
-            self.exp = data[self.station_id]
-            self.inp = data.drop(self.station_id, axis=1)    
+        #     self.exp = data[self.station_id]
+        #     self.inp = data.drop(self.station_id, axis=1)    
             
         # standardise inps to ~ 0 mean, 1 std
         self.scaler_inp = preprocessing.StandardScaler()
@@ -881,7 +884,7 @@ class NRFA:
             self.kfold_indices_cal = []
             self.kfold_indices_val = []
             for train_index, test_index in self.kf.split(self.inp):
-                # print("cal:", len(train_index), "val:", len(test_index))
+                print("cal:", len(train_index), "val:", len(test_index))
                 self.kfold_indices_cal.append(train_index)
                 self.kfold_indices_val.append(test_index)
         
@@ -926,7 +929,7 @@ class NRFA:
         Parameters
         ----------
         lr : float, optional
-            NN learning rate. The default is 1e-5.
+            NN learning rate. The default is 1e-4.
 
         """
         # create model
@@ -978,7 +981,7 @@ class NRFA:
         self.history = self.model.fit(self.cal_dataset, epochs=ep,
                                       validation_data=self.val_dataset, 
                                       callbacks=[self.cb_es, self.cb_rlr],
-                                      verbose=1)
+                                      verbose=0)
       
         # mods (batch_size ~ memory usage)  
         self.y_mod_cal = self.model.predict(self.x_cal, batch_size=32)[:, 0]
