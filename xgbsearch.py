@@ -68,7 +68,7 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, inp_thresh,
                     x.set_ids_updwnstream(0)     
                 
                 # re-fetch for current set of inps  
-                x.fetch_NRFA()
+                x.fetch_NRFA('gdf')
                 x.fetch_MO()
                 
                 """ ____________________ level2 __________________________ """
