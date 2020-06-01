@@ -135,8 +135,8 @@ def model_trainer(IDS, dist,
         y.to_csv(f'RMSEs/keras_RMSE_{st_id}.csv')
         x.keras_plots()
 
-if __name__ == "__main__":
-    model_trainer(IDS, 20, ep=1)
+# if __name__ == "__main__":
+#     model_trainer(IDS, 20, ep=1)
 
 
 ''' _____________________________ KERNETS ________________________________ '''
@@ -169,16 +169,16 @@ def kernets_ensembler(IDS, n_models=10):
         # z.find_outliers() 
         # z.plots(2000)
 
-if __name__ == "__main__":
-    kernets_ensembler([23011], 10)
+# if __name__ == "__main__":
+#     kernets_ensembler([23011], 10)
     
     
 
 def model_trainer_v2(IDS, dist,
-                  RG_src='MO', inp_ratio=.9,
-                  timelag_opt='all', timelag_t_x=5, 
-                  n_subset_inp=30, tt_split=400, cv_split=.25,
-                  n_models=20, lr=1e-4, ep=1e5):
+                     RG_src='MO', inp_ratio=0,
+                     timelag_opt='all', timelag_t_x=5, 
+                     n_subset_inp=30, tt_split=0, cv_split=.25,
+                     n_models=25, lr=1e-4, ep=int(1e5)):
     """
     Trains an ensemble of NN models.
     
@@ -222,27 +222,22 @@ def model_trainer_v2(IDS, dist,
         
         x = nrfa.NRFA(st_id)
         
+        x.set_ids_local()
         
         # ''' ___________________________ files ____________________________ '''
         
-        # MANUAL _MO and _NRFA lvl1
-        
-        # # level1 data
-        # qc_u.fetch_NRFA_local_2019(st_id)
-        # # x.fetch_MO()
+        # level1 data
+        x.fetch_NRFA('gdf')
+        x.fetch_MO()
     
         ''' _______________________ level2 data __________________________ '''
     
         # level2 data
-        #
-        # create subsetted _merged lvl2 from lvl1 and names, timelag and then subset
-        #
-        x.merge_inps(ratio=.5)
+        x.merge_inps(ratio=0)
         
         x.timelag_inps(timelag_t_x, timelag_opt, RG_src)
         
-        # subset 16 best txs
-        # x.
+        x.update_local_inps()
     
         ''' __________________________ keras _____________________________ '''
     
@@ -250,7 +245,7 @@ def model_trainer_v2(IDS, dist,
         for i in range(n_models):
             # cal/val split
             x.scale_split_traintest(n_traintest_split=tt_split,
-                                    ratio_calval_split=cv_split) 
+                                    ratio_calval_split=cv_split)
             
             # train NNs
             x.keras_model(lr)
@@ -261,7 +256,7 @@ def model_trainer_v2(IDS, dist,
             big_RMSE.append(x.RMSE().values)
             
             # console print
-            print(i, '/19: ', x.RMSE().values)
+            print(f"{i+1}/{n_models}: {x.RMSE().values}")
         
         # concat fit stats into pd.df & format
         y = nrfa.pd.DataFrame(nrfa.np.concatenate(big_RMSE)).drop_duplicates()
@@ -273,5 +268,4 @@ def model_trainer_v2(IDS, dist,
         
         # export fit & plots
         y.to_csv(f'RMSEs/keras_RMSE_{st_id}.csv')
-        x.keras_plots()
     

@@ -222,7 +222,7 @@ def presentation_plot_fit_xgb_retrain():
 
 
 
-def postproc(path, metric, thr):
+def postproc(path, metric, thr): # redundant
     header_vars = ['station', 'range_opt', 'range_dist', 'inp_opt', 'cols_sub']
 
     big = pd.DataFrame()
@@ -334,16 +334,26 @@ def postprc(metric):
     plt.close()
 
 
-postprc('nRMSE')
+# postprc('nRMSE')
 
 
 
+def get_GS_best_inps():
+    for file in os.listdir("GS/"):
+        if file[-4:] != '.csv':
+            continue
+        
+        x = pd.read_csv(f"GS/{file}", index_col=0, dtype=str)
+        
+        x_b = x[[x.columns[0], x.columns[14]]]
+        
+        header_index = x_b[x_b['var'] == "station"].index[0]
+        
+        x_b = x_b.loc[:(header_index-1)]
+        x_b = x_b[~x_b[x_b.columns[1]].isna()][["var"]]
+        x_b.to_csv(f"_model_inps/{file}", index=False)
 
-
-
-
-
-
+get_GS_best_inps()
 
 
 

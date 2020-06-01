@@ -296,6 +296,27 @@ class NRFA:
         if empty_NHA:
             self.nearby_NHA = []
 
+    def set_ids_local(self):
+         x = pd.read_csv(f"_model_inps/xgbsearch_{self.station_id}.csv",
+                         dtype=str)
+         
+         q = x['var'].str[-2] == '-'
+         
+         ok = x[~q].copy()
+         z = x[q].copy()
+         z['var'] = z['var'].str[:-2] 
+         
+         x = pd.DataFrame(ok.append(z)['var'].unique(),
+                          columns=['var'], dtype=int)
+         
+         nrfa = x[x['var'] < 100000]['var'].tolist() + [int(self.station_id)]
+         mo = x[x['var'] > 100000]['var'].tolist()
+         
+         self.nearby_NRFA = list(np.unique(nrfa))
+         self.nearby_MORAIN = mo
+         
+         print(self.station_id, nrfa, mo)
+        
     ''' ____________________________ / META ______________________________ '''       
 
         
@@ -628,6 +649,8 @@ class NRFA:
                     else:
                         merged = merged.append(sub_merged, sort=False)
         
+        print(merged)
+        
         # divide inp/exp
         self.exp = merged[self.station_id]
         self.inp = merged.drop(self.station_id, axis=1)    
@@ -642,6 +665,17 @@ class NRFA:
         self.inp.to_csv(f'data/level2/{self.station_id}/{self.station_id}_inp.csv')
         self.exp.to_csv(f'data/level2/{self.station_id}/{self.station_id}_exp.csv',
                         header=True)
+        
+        
+    def update_local_inps(self):
+        cols = pd.read_csv(f"_model_inps/xgbsearch_{self.station_id}.csv",
+                           dtype=str)
+        
+        inp = pd.read_csv(f"data/level2/{self.station_id}/{self.station_id}_inp.csv",
+                          index_col=0)
+        
+        inp[cols['var'].tolist()].to_csv(f"data/level2/{self.station_id}/{self.station_id}_inp.csv")
+        self.data_loaded = 0
     
 
     def merge_timelag_inps_subset(self, n_t_xs, src='MO'):
@@ -802,13 +836,12 @@ class NRFA:
         self.test_split = True if n_traintest_split != 0 else False
 
         # load data here
-        #
-        # if not self.data_loaded:
-        #     data = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_merged.csv',
-        #                         index_col=0, header=0)
-    
-        #     self.exp = data[self.station_id]
-        #     self.inp = data.drop(self.station_id, axis=1)    
+        if not self.data_loaded:    
+            self.exp = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_exp.csv',
+                                   index_col=0, header=0,
+                                   squeeze=True)
+            self.inp = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_inp.csv',
+                                   index_col=0, header=0)   
             
         # standardise inps to ~ 0 mean, 1 std
         self.scaler_inp = preprocessing.StandardScaler()
@@ -897,25 +930,6 @@ class NRFA:
         self.y_mean = exp.mean()
     
     
-    def save_model(self, out_id):
-        """
-        Export keras model with inp feature scaler. 
-
-        Parameters
-        ----------
-        out_id : int, optional
-            ID for exported model & inp scaler, -1 to disable scaler save.
-
-        """
-        # export scaler
-        if out_id != -1:
-            if not os.path.exists(f'_models/{self.station_id}'):
-                os.mkdir(f'_models/{self.station_id}')
-                
-            joblib.dump(self.scaler_inp, f'_models/{self.station_id}/scaler{out_id}.pkl')
-        
-        # export model
-        self.model.save(f'_models/{self.station_id}/mod{out_id}.h5')
             
     ''' ______________________ / PREPROCESSING ___________________________ '''   
         
@@ -990,6 +1004,27 @@ class NRFA:
         if self.test_split:
             self.y_mod_test = self.model.predict(self.x_test, batch_size=32)[:, 0]
 
+
+    def save_model(self, out_id):
+        """
+        Export keras model with inp feature scaler. 
+
+        Parameters
+        ----------
+        out_id : int, optional
+            ID for exported model & inp scaler, -1 to disable scaler save.
+
+        """
+        # export scaler
+        if out_id != -1:
+            if not os.path.exists(f'_models/{self.station_id}'):
+                os.mkdir(f'_models/{self.station_id}')
+                
+            joblib.dump(self.scaler_inp, f'_models/{self.station_id}/scaler{out_id}.pkl')
+        
+        # export model
+        self.model.save(f'_models/{self.station_id}/mod{out_id}.h5')
+        
 
     def keras_plots(self):
         """
