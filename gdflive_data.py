@@ -22,6 +22,7 @@ def fetch_gdflive(st_ids):
         # print(data_nrfa)
         print(data_live)
         
+        # cuz csv and every day in indx
         data_live.loc[data_nrfa.index[0]:data_nrfa.index[-1]] = data_nrfa.loc[data_nrfa.index[0]:data_nrfa.index[-1]]
         
         data_live.to_csv(f"data/gdf+live/{st_id}.csv")

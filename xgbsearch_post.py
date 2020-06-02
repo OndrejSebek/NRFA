@@ -345,7 +345,7 @@ def get_GS_best_inps():
         
         x = pd.read_csv(f"GS/{file}", index_col=0, dtype=str)
         
-        x_b = x[[x.columns[0], x.columns[14]]]
+        x_b = x[[x.columns[0], x.columns[17]]]
         
         header_index = x_b[x_b['var'] == "station"].index[0]
         

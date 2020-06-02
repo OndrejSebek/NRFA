@@ -76,6 +76,7 @@ out = out[out['gdf'] > 0]
 
 out.to_csv('meta/meta_new.csv', index=False)
 
+# out = out[out['Data reconciliation status'] == 'Completed']
 out[['STATION', 'easting', 'northing']].to_csv('meta/NRFA_meta_gdflive.csv', index=False)
 
 

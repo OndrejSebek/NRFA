@@ -66,16 +66,25 @@ def fetch_preqc_qc(station_id):
 
     # get orig(preqc)
     qc_corr['orig'] = qc_corr['FLOW_VALUES'].apply(get_orig)
-    # qc_corr['new'] = qc_corr['FLOW_VALUES'].apply(get_new)
     
-    # get qcd from gdf-live (tsp)
-    file = f'nrfa_{station_id}_gdf-live.csv'
-    curf = pd.read_csv(f'data/nrfa_raw/{station_id}/{file}',
-                       index_col=0, header=None)
-    curf = get_gdf_live(curf, file)
+    # get qcd from gdf+live (gdf until live)
+    root = 'https://nrfaapps.ceh.ac.uk/nrfa/ws/'
+    web_service_tseries = 'time-series?format=json-object'            
+    data_type_nrfa = f'&data-type=gdf&station={station_id}'          
+    data_type_live = f'&data-type=gdf-live&station={station_id}'          
+    
+    z = requests.get(root+web_service_tseries+data_type_nrfa).json()
+    z_l = requests.get(root+web_service_tseries+data_type_live).json()
+    
+    z_dt = pd.DataFrame({str(station_id): z['data-stream'][1::2]}, index=z['data-stream'][::2])
+    z_l_dt = pd.DataFrame({str(station_id): z_l['data-stream'][1::2]}, index=z_l['data-stream'][::2])
+    
+    z_x = z_l_dt.loc[z_dt.index[-1]:]
+    z_f = pd.concat([z_dt, z_x.iloc[1:]],
+                    axis=0, sort=False)
     
     # merge 
-    merged = pd.merge(curf, qc_corr[['orig']],
+    merged = pd.merge(z_f, qc_corr[['orig']],
                       left_index=True, right_index=True,
                       how='outer')
     

@@ -60,7 +60,7 @@ class Kernets:
         #             self.xgb_reg.load_model('_models/'+self.station_id+'/'+file)
         #             print(file, 'loaded (xgb)')
             
-        self.inp = pd.read_csv(f'data/level2{+self.station_id}/{self.station_id}_inp.csv',
+        self.inp = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_inp.csv',
                                index_col=0)
         self.exp = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_exp.csv',
                                index_col=0)#.values)
@@ -109,7 +109,8 @@ class Kernets:
         weights = self.net_rmses['best_nets'].sum()/self.net_rmses['best_nets']
         
         self.m_w = np.average(self.pred, weights=weights, axis=1)
-        self.std_w = np.sqrt(np.average((self.pred-self.m_w[:,None])**2, weights=weights, axis=1))
+        self.std_w = np.sqrt(np.average((self.pred-self.m_w[:,None])**2,
+                                        weights=weights, axis=1))
         
         # conf intervals
         # n = len(self.pred)
@@ -156,12 +157,7 @@ class Kernets:
         merged_out.to_csv(f'data/level3/{self.station_id}/{self.station_id}_merged.csv')
         pd.DataFrame(self.pred,
                      index=self.exp.index).to_csv(f'data/level3/{self.station_id}/{self.station_id}_mods.csv')
-        
-        # pd.DataFrame(self.pred).to_csv('data/level3/'+self.station_id+'/nn/x_nns.csv')
-        # pd.DataFrame(self.m).to_csv('data/level3/'+self.station_id+'/nn/x_m.csv')
-        # pd.DataFrame(self.std).to_csv('data/level3/'+self.station_id+'/nn/x_std.csv')
-        # pd.DataFrame(self.high).to_csv('data/level3/'+self.station_id+'/nn/x_h.csv')
-        # pd.DataFrame(self.low).to_csv('data/level3/'+self.station_id+'/nn/x_l.csv')
+  
    
     
     def get_orig_exp(self):

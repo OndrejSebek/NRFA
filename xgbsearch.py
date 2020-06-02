@@ -183,16 +183,16 @@ def xgbsearch(station_ids, range_opts, range_rad_m, inp_opts, inp_thresh,
 
 # station_ids, range_opts, range_rad_m, xgb_sub_n, runs
 
-# xgbsearch(['45001'],
-#           ['radius', 'updwn'],
-#           [30, 51, 20],
-#           ['MO', 'NRFA_only'],
-#           .8,
-#           5,
-#           [16, 32],
-#           5,
-#           lr=0.0001,
-#           ep=10000)
+xgbsearch(['47019'],
+          ['radius', 'updwn'],
+          [30, 51, 20],
+          ['MO', 'NRFA_only'],
+          .9,
+          5,
+          [16, 32],
+          5,
+          lr=0.0001,
+          ep=1)
 
 
 '''

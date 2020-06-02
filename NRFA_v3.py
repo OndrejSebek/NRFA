@@ -345,6 +345,33 @@ class NRFA:
             os.mkdir(f'data/level1/{self.station_id}')
         data.to_csv(f'data/level1/{self.station_id}/{self.station_id}_NRFA.csv')
         
+    def fetch_NRFA_gdfpluslive(self):     
+        data = pd.DataFrame()
+        for i in self.nearby_NRFA:
+            web_service_tseries = 'time-series?format=json-object'            
+            data_type_nrfa = f'&data-type=gdf&station={i}'          
+            data_type_live = f'&data-type=gdf-live&station={i}'          
+            
+            z = requests.get(self.root+web_service_tseries+data_type_nrfa).json()
+            z_l = requests.get(self.root+web_service_tseries+data_type_live).json()
+            
+            z_dt = pd.DataFrame({str(i): z['data-stream'][1::2]}, index=z['data-stream'][::2])
+            z_l_dt = pd.DataFrame({str(i): z_l['data-stream'][1::2]}, index=z_l['data-stream'][::2])
+            
+            # z_l_dt.loc[z_dt.index[0]:z_dt.index[-1]] = z_dt.loc[z_dt.index[0]:z_dt.index[-1]]
+            z_x = z_l_dt.loc[z_dt.index[-1]:]
+            z_f = pd.concat([z_dt, z_x.iloc[1:]],
+                            axis=0, sort=False)
+            
+            data = pd.concat([data, z_f], axis=1, sort=False)
+            
+        data.index = pd.to_datetime(data.index)
+        data = data.sort_index()
+        
+        if not os.path.exists(f'data/level1/{self.station_id}'):
+            os.mkdir(f'data/level1/{self.station_id}')
+        data.to_csv(f'data/level1/{self.station_id}/{self.station_id}_NRFA.csv')
+        
     def fetch_agg_EA(self):
         """
         Fetch (local) identified EA gauge rainfall and aggregate to daily

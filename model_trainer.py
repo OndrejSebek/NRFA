@@ -135,46 +135,8 @@ def model_trainer(IDS, dist,
         y.to_csv(f'RMSEs/keras_RMSE_{st_id}.csv')
         x.keras_plots()
 
-# if __name__ == "__main__":
-#     model_trainer(IDS, 20, ep=1)
 
-
-''' _____________________________ KERNETS ________________________________ '''
-
-def kernets_ensembler(IDS, n_models=10):
-    """
-    Combine nr. of trained NNs into mod ensemble. 
-    Reads model+scaler files, RMSE fit table, lvl2 *_inp+*_exp.
-    Exports level3 data. 
-
-    Parameters
-    ----------
-    IDS : list [int/str]
-        NRFA station IDs.
-    n_models : int, optional
-        Nr. of models to form the ensemble. The default is 10.
-
-    """
-    for st_id in IDS:
-        z = knets.Kernets(st_id, n_models)
-        
-        # preqc/qc files - level3 data (*_qc)
-        qc_u.fetch_preqc_qc(st_id)
-    
-        # preds - level3 data (*_merged, *_mods)
-        z.get_mod()
-        z.save_mod_merged()
-        
-        # z.get_orig_exp()
-        # z.find_outliers() 
-        # z.plots(2000)
-
-# if __name__ == "__main__":
-#     kernets_ensembler([23011], 10)
-    
-    
-
-def model_trainer_v2(IDS, dist,
+def model_trainer_v2(IDS, dist=50,
                      RG_src='MO', inp_ratio=0,
                      timelag_opt='all', timelag_t_x=5, 
                      n_subset_inp=30, tt_split=0, cv_split=.25,
@@ -227,7 +189,7 @@ def model_trainer_v2(IDS, dist,
         # ''' ___________________________ files ____________________________ '''
         
         # level1 data
-        x.fetch_NRFA('gdf')
+        x.fetch_NRFA('gdf-live')
         x.fetch_MO()
     
         ''' _______________________ level2 data __________________________ '''
@@ -269,3 +231,44 @@ def model_trainer_v2(IDS, dist,
         # export fit & plots
         y.to_csv(f'RMSEs/keras_RMSE_{st_id}.csv')
     
+
+''' _____________________________ KERNETS ________________________________ '''
+
+def kernets_ensembler(IDS, n_models=20, timelag_opt='all', timelag_t_x=5, 
+                      RG_src="MO"):
+    """
+    Combine nr. of trained NNs into mod ensemble. 
+    Reads model+scaler files, RMSE fit table, lvl2 *_inp+*_exp.
+    Exports level3 data. 
+
+    Parameters
+    ----------
+    IDS : list [int/str]
+        NRFA station IDs.
+    n_models : int, optional
+        Nr. of models to form the ensemble. The default is 10.
+
+    """
+    for st_id in IDS:
+        x = nrfa.NRFA(st_id)
+        x.set_ids_local()
+        
+        x.fetch_NRFA_gdfpluslive()
+        x.fetch_MO()
+
+        x.merge_inps(ratio=0)
+        x.timelag_inps(timelag_t_x, timelag_opt, RG_src)
+        x.update_local_inps()
+        
+        z = knets.Kernets(st_id, n_models)
+        qc_u.fetch_preqc_qc(st_id)
+        # preds - level3 data (*_merged, *_mods)
+        z.get_mod()
+        z.save_mod_merged()
+        
+        # z.get_orig_exp()
+        # z.find_outliers() 
+        # z.plots(2000)
+
+
+kernets_ensembler(IDS, 20)
