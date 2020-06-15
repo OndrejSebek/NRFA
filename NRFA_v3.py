@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import os
 import requests
 
+import QC_utils as qc_u
 
 """
 NRFA/EA/MO data:
@@ -345,7 +346,7 @@ class NRFA:
             os.mkdir(f'data/level1/{self.station_id}')
         data.to_csv(f'data/level1/{self.station_id}/{self.station_id}_NRFA.csv')
         
-    def fetch_NRFA_gdfpluslive(self):     
+    def fetch_NRFA_gdfpluslive(self, preqc=False):     
         data = pd.DataFrame()
         for i in self.nearby_NRFA:
             web_service_tseries = 'time-series?format=json-object'            
@@ -368,6 +369,20 @@ class NRFA:
         data.index = pd.to_datetime(data.index)
         data = data.sort_index()
         
+        # replace with preqc values
+        if preqc:
+            if int(self.station_id) in self.nearby_NRFA:
+                qc_corr = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts-2020-02-17.csv',
+                                      index_col=1)
+                qc_corr = qc_corr[qc_corr['STATION'] == int(self.station_id)][['FLOW_VALUES']]
+                qc_corr.index = pd.to_datetime(qc_corr.index,
+                                               format='%Y-%m-%d %H:%M:%S').normalize()
+                
+                qc_corr['orig'] = qc_corr['FLOW_VALUES'].apply(qc_u.get_orig)
+                
+                qc_cors = qc_corr[qc_corr["orig"] != "nan"][["orig"]]
+                data.loc[qc_cors.index, self.station_id] = qc_cors["orig"]
+
         if not os.path.exists(f'data/level1/{self.station_id}'):
             os.mkdir(f'data/level1/{self.station_id}')
         data.to_csv(f'data/level1/{self.station_id}/{self.station_id}_NRFA.csv')
