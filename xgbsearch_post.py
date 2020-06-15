@@ -350,7 +350,8 @@ def get_GS_best_inps():
         header_index = x_b[x_b['var'] == "station"].index[0]
         
         x_b = x_b.loc[:(header_index-1)]
-        x_b = x_b[~x_b[x_b.columns[1]].isna()][["var"]]
+        x_b = x_b[~x_b[x_b.columns[1]].isna()][["var", x.columns[17]]]
+        x_b.columns = ["var", "feature_importance"]
         x_b.to_csv(f"_model_inps/{file}", index=False)
 
 get_GS_best_inps()

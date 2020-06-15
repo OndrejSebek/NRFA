@@ -364,8 +364,8 @@ def model_inp_subtables(station, n_inps):
     Inp feature tables w/ weights (importances).
     
     """
-    model_inps = pd.read_csv(f'_model_inps/{station}.csv')   
-    stations = model_inps['colname'][:n_inps].astype(str)
+    model_inps = pd.read_csv(f'_model_inps/xgbsearch_{station}.csv')   
+    stations = model_inps['var'][:n_inps].astype(str)
     t_lag_max = 0
     
     sts = []
@@ -392,14 +392,14 @@ def model_inp_subtables(station, n_inps):
             st = i
             t = 0
 
-        st_map.loc[st, int(t)] = model_inps.loc[model_inps['colname']==i,
+        st_map.loc[st, int(t)] = model_inps.loc[model_inps['var']==i,
                                                 'feature_importance'].values
    
     st_map.loc[station, 0] = -1    
     st_map.to_csv(f'_model_inps_subtable/{station}.csv', index=True)
 
-# for st in os.listdir('plots'):
-#     model_inp_subtables(st, 20)
+for st in os.listdir('plots'):
+    model_inp_subtables(st, 16)
 
 
 def xstations_ndata_nrfa():
