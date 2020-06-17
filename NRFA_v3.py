@@ -608,6 +608,9 @@ class NRFA:
             print('invalid lag_opt\n')
             return
         
+        # remove target station from inps to lag
+        if self.station_id in inps_to_lag:
+            inps_to_lag.remove(self.station_id)
         print(f'inps to lag: {inps_to_lag}')
         
         # if no stations/gauges for current lag_opt
