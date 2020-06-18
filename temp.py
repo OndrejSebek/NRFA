@@ -115,3 +115,97 @@ x.set_ids_updwnstream(a)
 
 
 
+
+""" _____________________________ MORAIN 241  ____________________________ """
+
+# 17.6.
+
+# Get the start and end dates for all of these hourly raingauges
+# Maybe find how many are within X km of your gauging station dataset
+# See if the period of record is likely to give you enough data to work with
+
+import pandas as pd
+import numpy as np
+
+dt0 = pd.read_excel("meta/202003tbr_data_mar2020.xlsx", sheet_name=0)
+dt1 = pd.read_excel("meta/202003tbr_data_mar2020.xlsx", sheet_name=1)
+dt2 = pd.read_excel("meta/202003tbr_data_mar2020.xlsx", sheet_name=2)
+
+
+ids = pd.DataFrame(dt0["RAIN_ID"].unique())
+
+lkup = dt1[["ID", "SRC_ID", "EASTING", "NORTHING"]]
+
+x = pd.merge(ids, lkup,
+             left_on=ids.columns[0], right_on="ID",
+             how="inner").drop(ids.columns[0], axis=1)
+
+dates = []
+for st_id in x["ID"]:
+    cur = pd.read_csv(f"data/morain_raw/data/{st_id}.csv")
+    dates.append([st_id, cur["DAY"].iloc[0], cur["DAY"].iloc[-1], cur.shape[0]])
+
+dates = pd.DataFrame(dates, columns=["ID", "start", "end", "rows"])
+
+y = pd.merge(x, dates,
+             on="ID",
+             how="inner")
+
+y.set_index("ID", inplace=True)
+y.to_csv("meta/MORAIN_241_meta.csv", index=True)
+
+
+IDS = [33013, 34010, 34012, 34018, 39056, 40017, 46005, 47019, 48001, 49006]
+import NRFA_v3 as nrfa
+
+locs = []
+for st_id in IDS:
+    z = nrfa.NRFA(st_id)
+    rows = pd.read_csv(f"data/level1/{st_id}/{st_id}_NRFA.csv")[str(st_id)].shape[0]
+    locs.append([st_id, z.east, z.north, rows])
+locs = pd.DataFrame(locs, columns=["ID", "east", "north", "rows"])
+locs.set_index("ID", inplace=True)
+
+big = pd.DataFrame(np.zeros((len(IDS), y.shape[0]+1)))
+big.columns=["ID"]+list(map(str, y.index.values))
+big.ID = IDS
+big.set_index("ID", inplace=True)
+
+for st_id in IDS:
+    e = locs[locs["ID"] == st_id]["east"].values[0]
+    n = locs[locs["ID"] == st_id]["north"].values[0]
+
+    for _st_id in y.index:
+        _e = y.loc[_st_id, "EASTING"]
+        _n = y.loc[_st_id, "NORTHING"]
+       
+        dist = np.sqrt((e - _e)*(e - _e) + (n - _n)*(n - _n))
+        
+        big.loc[st_id, str(_st_id)] = dist
+
+big = big.astype(float)
+THR = 70000
+big[big > THR] = np.nan
+big.dropna(thresh=1, axis=1, inplace=True)
+# big.to_csv("meta/MORAIN_241_MATT_70km.csv", index=True)
+
+
+cols = big.columns.astype(int).tolist()
+z = y.loc[cols]
+
+bik = big.copy()
+for i in bik.index:
+    for j in bik.columns:
+        if ~np.isnan(bik.loc[i, j]):
+            bik.loc[i, j] = y.loc[int(j), "rows"]
+
+
+for stid in IDS:
+    c = pd.DataFrame([big.loc[stid].dropna(), bik.loc[stid].dropna()]).T
+    c.columns = ["dist", "rows"]
+    c.loc[stid] = [0, locs.loc[stid, "rows"]]
+    c.sort_values("dist", inplace=True)
+    c.to_csv(f"meta/MORAIN_241/{stid}_70km.csv")
+
+""" ___________________  ________________________ """
+
