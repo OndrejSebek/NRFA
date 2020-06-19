@@ -293,39 +293,47 @@ def postprc(metric):
         headers = dt.loc[header_vars]
         vals = dt.iloc[-4:].astype(float)   
         
+        cur = headers.append(vals)
+        
         headers.columns = range(headers.shape[1])
         vals.columns = range(vals.shape[1])
         
+        # fix cols_sub
+        cur.loc["cols_sub"] = ["full", "16", "32"] * int(cur.shape[1]/3)
+                
         asc = True if metric == 'NSE' else False
-        vals = vals.sort_values(f'{metric}_val_NN_avg', axis=1,
-                                ascending=asc)
+        cur = cur.sort_values(f'{metric}_val_NN_avg', axis=1,
+                              ascending=asc)
         
         if asc:        
-            base_cal = vals.loc[f'{metric}_cal_NN_avg'].max()
-            base_val = vals.loc[f'{metric}_val_NN_avg'].max()
+            base_cal = cur.loc[f'{metric}_cal_NN_avg'].max()
+            base_val = cur.loc[f'{metric}_val_NN_avg'].max()
             
-            vals.loc['perc_cal'] = (base_cal - vals.loc[f'{metric}_cal_NN_avg'])/base_cal
-            vals.loc['perc_val'] = (base_val - vals.loc[f'{metric}_val_NN_avg'])/base_val
+            cur.loc['perc_cal'] = (base_cal - cur.loc[f'{metric}_cal_NN_avg'])/base_cal
+            cur.loc['perc_val'] = (base_val - cur.loc[f'{metric}_val_NN_avg'])/base_val
         else:
             base_cal = vals.loc[f'{metric}_cal_NN_avg'].min()
             base_val = vals.loc[f'{metric}_val_NN_avg'].min()
 
-            vals.loc['perc_cal'] = (vals.loc[f'{metric}_cal_NN_avg'] - base_cal)/base_cal  
-            vals.loc['perc_val'] = (vals.loc[f'{metric}_val_NN_avg'] - base_val)/base_val  
+            cur.loc['perc_cal'] = (cur.loc[f'{metric}_cal_NN_avg'] - base_cal)/base_cal  
+            cur.loc['perc_val'] = (cur.loc[f'{metric}_val_NN_avg'] - base_val)/base_val  
         
         if big.empty:
-            big = vals.loc[['perc_cal', 'perc_val']].copy()
+            big = cur.loc[header_vars + ["perc_cal", "perc_val"]].copy()
         else:
-            big = big + vals.loc[['perc_cal', 'perc_val']]
+            big = pd.merge(big.T, cur.loc[header_vars + ["perc_cal", "perc_val"]].T,
+                           on=header_vars,
+                           how="outer").T
 
-    big /= files
-    big = headers.append(big)
+    # avg
+    big.loc["avg_perc_cal"] = big.iloc[4::2].mean()   
+    big.loc["avg_perc_val"] = big.iloc[5::2].mean() 
     
-    big.sort_values('perc_val', axis=1, inplace=True, ascending=asc)
+    big.sort_values('avg_perc_val', axis=1, inplace=True, ascending=asc)
     print(big)
     big.to_csv('GS/plots/perc.csv')
     
-    ax = big.loc[['perc_cal', 'perc_val']].astype(float).T.plot.bar(figsize=(25, 20))
+    ax = big.loc[['avg_perc_cal', 'avg_perc_val']].astype(float).T.plot.bar(figsize=(25, 20))
     # plt.plot(sub.loc[['NSE_cal_NN_avg', 'NSE_val_NN_avg']].astype(float).T)
     ax.set_xticklabels(big.loc['inp_opt'].str[:] + ' ' + big.loc['range_opt'].str[:]
                         + ' ' + big.loc['range_dist'].str[:2] + 'km ' 
@@ -334,7 +342,7 @@ def postprc(metric):
     plt.close()
 
 
-# postprc('nRMSE')
+postprc('nRMSE')
 
 
 
