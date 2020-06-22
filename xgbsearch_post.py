@@ -329,16 +329,16 @@ def postprc(metric):
     big.loc["avg_perc_cal"] = big.iloc[4::2].mean()   
     big.loc["avg_perc_val"] = big.iloc[5::2].mean() 
     
-    big.sort_values('avg_perc_val', axis=1, inplace=True, ascending=asc)
+    big.sort_values('avg_perc_val', axis=1, inplace=True, ascending=False)
     print(big)
-    big.to_csv('GS/plots/perc.csv')
+    big.to_csv(f'GS/plots/perc_{metric}.csv')
     
     ax = big.loc[['avg_perc_cal', 'avg_perc_val']].astype(float).T.plot.bar(figsize=(25, 20))
     # plt.plot(sub.loc[['NSE_cal_NN_avg', 'NSE_val_NN_avg']].astype(float).T)
     ax.set_xticklabels(big.loc['inp_opt'].str[:] + ' ' + big.loc['range_opt'].str[:]
                         + ' ' + big.loc['range_dist'].str[:2] + 'km ' 
                         + big.loc['cols_sub'].str[:] + 'inp')
-    plt.savefig(f'GS/plots/perc.png')
+    plt.savefig(f'GS/plots/perc_{metric}.png')
     plt.close()
 
 
@@ -362,7 +362,7 @@ def get_GS_best_inps():
         x_b.columns = ["var", "feature_importance"]
         x_b.to_csv(f"_model_inps/{file}", index=False)
 
-get_GS_best_inps()
+# get_GS_best_inps()
 
 
 
