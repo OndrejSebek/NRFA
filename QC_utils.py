@@ -263,6 +263,8 @@ def plot_preqc_qc_nn(station_id, mrgd, n_dt):
 
 def Qn_fit_stats():
     """
+    ~level3 data
+    
     Calculate overall and individual Q70/30 fit stats (RMSEs, STDs, NSEs).
     
     """    
@@ -306,7 +308,9 @@ def Qn_fit_stats():
                                                '<q70_nSTD', 'q30-q70_nSTD', '>q30_nSTD',
                                                'comb_NSE'])
     
-    big_rmse.to_csv('meta/comp/Qn_stats.csv', index=False)
+    big_rmse.to_csv('meta/comp/Qn_fit_stats.csv', index=False)
+
+# Qn_fit_stats()
 
 
 def comp_v2_v3_RMSEs():
@@ -398,8 +402,8 @@ def model_inp_subtables(station, n_inps):
     st_map.loc[station, 0] = -1    
     st_map.to_csv(f'_model_inps_subtable/{station}.csv', index=True)
 
-for st in os.listdir('plots'):
-    model_inp_subtables(st, 16)
+# for st in os.listdir('plots'):
+#     model_inp_subtables(st, 16)
 
 
 def xstations_ndata_nrfa():
