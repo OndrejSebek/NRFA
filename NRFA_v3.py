@@ -1134,8 +1134,8 @@ class NRFA:
         self.xgb_feature_imps.columns = ['colname', 'feature_importance']
         self.xgb_feature_imps = self.xgb_feature_imps.sort_values('feature_importance', ascending=False)
         self.xgb_feature_imps.index = range(self.xgb_feature_imps.shape[0])
-        self.xgb_feature_imps.to_csv('_model_inps/'+self.station_id+'.csv',
-                                     index=False)
+        # self.xgb_feature_imps.to_csv('_model_inps/'+self.station_id+'.csv',
+        #                              index=False)
         
         # mods
         self.y_mod_cal = self.xgb_reg.predict(x_cal)

@@ -458,7 +458,7 @@ def comp_fit_vxvy(x, y, metric):
     plt.savefig(f'GS/plots/v{x}v{y}_bigbig_{metric}.png')
     plt.close()
     
-comp_fit_vxvy(2, 4, "nRMSE")  
+# comp_fit_vxvy(2, 4, "nRMSE")  
     
 
 def comp_fit_stations(opts, metric):
@@ -497,31 +497,30 @@ def comp_fit_stations(opts, metric):
     plt.savefig(f"GS/plots/fit_comp_{metric}.png")
     plt.close()
     
-comp_fit_stations(["radius", "50", "NRFA_only", "32"], "nRMSE")
+# comp_fit_stations(["radius", "50", "NRFA_only", "32"], "nRMSE")
 
     
 """ ___________________________________________________________________ """
     
-def get_GS_best_inps():
+def get_GS_best_inps(opts):
     for file in os.listdir("GS/"):
         if file[-4:] != '.csv':
             continue
         
-        x = pd.read_csv(f"GS/{file}", index_col=0, dtype=str)
+        x = pd.read_csv(f"GS/{file}", index_col=1,
+                        dtype=str).drop("Unnamed: 0", axis=1)
         
-        x_b = x[[x.columns[0], x.columns[17]]]
+        x = x.loc[:, (x.loc["range_opt"] == opts[0]).tolist()]
+        x = x.loc[:, (x.loc["range_dist"] == opts[1]).tolist()]
+        x = x.loc[:, (x.loc["inp_opt"] == opts[2]).tolist()]
+        x = pd.DataFrame(x.iloc[:, opts[3]])
         
-        header_index = x_b[x_b['var'] == "station"].index[0]
-        
-        x_b = x_b.loc[:(header_index-1)]
-        x_b = x_b[~x_b[x_b.columns[1]].isna()][["var", x.columns[17]]]
-        x_b.columns = ["var", "feature_importance"]
-        x_b.to_csv(f"_model_inps/{file}", index=False)
+        x = x.loc[:"station"].iloc[:-1]
+        x = x[~x[x.columns[0]].isna()]
+        x.columns = ["feature_importance"]
+        x.to_csv(f"_model_inps/{file}", index=True)
 
-# get_GS_best_inps()
-
-
-
+# get_GS_best_inps(["radius", "50", "NRFA_only", 2])
 
 
 
