@@ -354,7 +354,7 @@ def postprc(metric):
     plt.close()
 
 
-# postprc('NSE')
+# postprc('nRMSE')
 
 
 def comp_perc_vxvy(x, y, metric):
@@ -387,7 +387,7 @@ def comp_perc_vxvy(x, y, metric):
     plt.close()
     
     
-# comp_perc_vxvy(2, 4, "NSE")    
+# comp_perc_vxvy(2, 4, "nRMSE")    
 
 
 def comp_fit_vxvy(x, y, metric):

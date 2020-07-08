@@ -345,6 +345,7 @@ class NRFA:
         if not os.path.exists(f'data/level1/{self.station_id}'):
             os.mkdir(f'data/level1/{self.station_id}')
         data.to_csv(f'data/level1/{self.station_id}/{self.station_id}_NRFA.csv')
+        print(data.index[-1])
         
     def fetch_NRFA_gdfpluslive(self, preqc=False):     
         data = pd.DataFrame()

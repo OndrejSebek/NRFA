@@ -82,8 +82,8 @@ def model_trainer(IDS, dist,
         ''' ___________________________ files ____________________________ '''
         
         # level1 data
-        qc_u.fetch_NRFA_local_2019(st_id)
-        #x.fetch_NRFA()
+        # qc_u.fetch_NRFA_local_2019(st_id)
+        x.fetch_NRFA('gdf')
         # x.fetch_agg_EA()
         x.fetch_MO()
     
@@ -271,4 +271,4 @@ def kernets_ensembler(IDS, n_models=20, timelag_opt='all', timelag_t_x=5,
         # z.plots(2000)
 
 
-kernets_ensembler(IDS, 20)
+# kernets_ensembler(IDS, 20)

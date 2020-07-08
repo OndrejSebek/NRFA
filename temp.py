@@ -209,3 +209,13 @@ for stid in IDS:
 
 """ ___________________  ________________________ """
 
+
+for cid in IDS:
+    x = nrfa.NRFA(cid)
+    x.set_ids_local()
+    x.fetch_NRFA("gdf-live")
+
+
+
+
+
