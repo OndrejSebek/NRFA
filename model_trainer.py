@@ -189,7 +189,7 @@ def model_trainer_v2(IDS, dist=50,
         # ''' ___________________________ files ____________________________ '''
         
         # level1 data
-        x.fetch_NRFA('gdf-live')
+        x.fetch_NRFA('gdf')
         x.fetch_MO()
     
         ''' _______________________ level2 data __________________________ '''
