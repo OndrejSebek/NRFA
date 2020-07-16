@@ -261,7 +261,7 @@ class NRFA:
             The default is 0.
 
         """
-        # meta = pd.read_excel('stations_upstream_downstream/nrfa_nearest_sites.xlsx',
+        # meta = pd.read_excel('meta/stations_upstream_downstream/nrfa_nearest_sites.xlsx',
         #                      sheet_name='nrfa_nearest_sites')
         
         meta = pd.read_csv('meta/NRFA_meta_gdfliveonly_format_updwnstream.csv')

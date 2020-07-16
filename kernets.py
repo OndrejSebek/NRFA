@@ -1,16 +1,10 @@
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-import xgboost as xgb
-
-from scipy.stats import gaussian_kde
+import matplotlib.pyplot as plt
 
 import os
 import joblib
-import matplotlib.pyplot as plt
-from scipy.stats import t
-
-import QC_utils as qc_u
 
 
 class Kernets:
@@ -48,25 +42,13 @@ class Kernets:
             self.n_inps.append(self.nets[0].get_weights()[0].shape[0])
             print(f'net & scaler {net} loaded')
             
-            
-        # for file in os.listdir('_models/'+self.station_id):
-        #     if file[0] != 's' and file[0] != 'b':
-        #         if file[0] != 'x':           
-        #             self.nets.append(tf.keras.models.load_model('_models/'+self.station_id+'/'+file))
-        #             self.n_inps.append(self.nets[0].get_weights()[0].shape[0])
-        #             print(file, 'loaded (net)')
-        #         else:
-        #             self.xgb_reg = xgb.XGBRegressor()
-        #             self.xgb_reg.load_model('_models/'+self.station_id+'/'+file)
-        #             print(file, 'loaded (xgb)')
-            
         self.inp = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_inp.csv',
                                index_col=0)
         self.exp = pd.read_csv(f'data/level2/{self.station_id}/{self.station_id}_exp.csv',
-                               index_col=0)#.values)
+                               index_col=0)
 
 
-    def get_mod(self, bounds=[], conf=0.95):
+    def get_mod(self, bounds=[]):
         """
         Model (self.m, self.std) with all subsetted (__init__) NNs 
         for given period.
@@ -75,8 +57,6 @@ class Kernets:
         ----------
         bounds : [int, int]
             bounds used to subset data points
-        conf : float, optional
-            confidence level value, the default is 0.95
             
         """
         ndim = self.inp.ndim
@@ -95,43 +75,23 @@ class Kernets:
             inps = self.scalers[i].transform(self.inp)
             self.pred.append(net.predict(inps))
         
-        # xgb pred
-        #scaler = joblib.load('_models/'+self.station_id+'/scaler99.pkl')
-        #inps = scaler.transform(self.inp)
-        #self.pred.append(self.xgb_reg.predict(inps).reshape(-1, 1))
-        
         # comb
         self.pred = np.concatenate(self.pred, axis=1)
         
         # WEIGHTS
-        #
-        # rmses = pd.read_csv('RMSEs/keras_RMSE_'+self.station_id+'.csv')['val']
         weights = self.net_rmses['best_nets'].sum()/self.net_rmses['best_nets']
         
         self.m_w = np.average(self.pred, weights=weights, axis=1)
         self.std_w = np.sqrt(np.average((self.pred-self.m_w[:,None])**2,
                                         weights=weights, axis=1))
         
-        # conf intervals
-        # n = len(self.pred)
-        
         # use mean and std
-        #self.m = np.mean(self.pred, axis=1)
-        #self.std = np.std(self.pred, axis=1)
+        # self.m = np.mean(self.pred, axis=1)
+        # self.std = np.std(self.pred, axis=1)
         
-        # use weighted average and std
+        # use weighted mean and std
         self.m = self.m_w
         self.std = self.std_w
-        
-        # set conf intervals
-        # self.h = self.std * t.ppf((1+conf)/2, n-1)       
-        # self.low = self.m-self.h
-        # self.high = self.m+self.h
-        
-        # kde
-        # self.kdes = []
-        # for i in self.pred:
-        #     self.kdes.append(gaussian_kde(i, bw_method=(.5/self.pred.std(ddof=1))))
     
     
     def save_mod_merged(self):
@@ -158,8 +118,10 @@ class Kernets:
         pd.DataFrame(self.pred,
                      index=self.exp.index).to_csv(f'data/level3/{self.station_id}/{self.station_id}_mods.csv')
   
-   
+    """ 
+    REDUNDANT ->
     
+    """
     def get_orig_exp(self):
         """
         REDUNDANT: Get (@self.exp_orig) original (preQC) timeseries.

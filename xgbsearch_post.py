@@ -462,9 +462,6 @@ def comp_fit_vxvy(x, y, metric):
     
 
 def comp_fit_stations(opts, metric):
-    header_vars = ['station', 'range_opt', 'range_dist', 'inp_opt', 'cols_sub']
-    _vars = [f"{metric}_cal_NN_avg", f"{metric}_val_NN_avg"]
-    
     big = []
     for file in os.listdir(f'GS/'):
         if file[-4:] == '.csv':
