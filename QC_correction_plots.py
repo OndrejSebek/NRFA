@@ -110,7 +110,7 @@ for station_id in IDS:
         ax1.set_yticks([])
         
         # save plots
-        plt.savefig('QC_plots/'+i+'.png')
+        plt.savefig('plots/QC_plots/'+i+'.png')
         plt.close()
 
 # format + export csvs
@@ -119,8 +119,8 @@ big.columns = big.columns.astype(str)
 big.columns = ['NRFA_ID', 'EA_ID']+list(map(str, range(big.shape[1]-2)))
 big.sort_values('NRFA_ID', inplace=True)
 
-big.to_csv('QC_plots/csv/NRFA_QC_corr_class.csv', index=False)
-big.to_excel('QC_plots/csv/NRFA_QC_corr_class.xlsx', index=False)
+big.to_csv('plots/QC_plots/csv/NRFA_QC_corr_class.csv', index=False)
+big.to_excel('plots/QC_plots/csv/NRFA_QC_corr_class.xlsx', index=False)
 
 
 ''' ______________________________ MAP ___________________________________ '''
@@ -135,7 +135,7 @@ fig = plt.figure(figsize=(10, 10), dpi=300)
 plt.plot(stations['easting'], stations['northing'],
          c='black',
          marker = 'o', linestyle=' ')
-plt.savefig('QC_plots/map.png')
+plt.savefig('plots/QC_plots/map.png')
 plt.close()
 
 
