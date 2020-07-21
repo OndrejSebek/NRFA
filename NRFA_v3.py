@@ -372,17 +372,17 @@ class NRFA:
         
         # replace with preqc values
         if preqc:
-            if int(self.station_id) in self.nearby_NRFA:
+            for st in self.nearby_NRFA:
                 qc_corr = pd.read_csv('meta/_NRFA_qc/gdf-live-audit-counts-2020-02-17.csv',
                                       index_col=1)
-                qc_corr = qc_corr[qc_corr['STATION'] == int(self.station_id)][['FLOW_VALUES']]
+                qc_corr = qc_corr[qc_corr['STATION'] == int(st)][['FLOW_VALUES']]
                 qc_corr.index = pd.to_datetime(qc_corr.index,
                                                format='%Y-%m-%d %H:%M:%S').normalize()
                 
                 qc_corr['orig'] = qc_corr['FLOW_VALUES'].apply(qc_u.get_orig)
                 
                 qc_cors = qc_corr[qc_corr["orig"] != "nan"][["orig"]]
-                data.loc[qc_cors.index, self.station_id] = qc_cors["orig"]
+                data.loc[qc_cors.index, str(st)] = qc_cors["orig"]
 
         if not os.path.exists(f'data/level1/{self.station_id}'):
             os.mkdir(f'data/level1/{self.station_id}')

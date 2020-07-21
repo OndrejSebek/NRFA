@@ -253,7 +253,7 @@ def kernets_ensembler(IDS, n_models=20, timelag_opt='all', timelag_t_x=5,
         x = nrfa.NRFA(st_id)
         x.set_ids_local()
         
-        x.fetch_NRFA_gdfpluslive(preqc=True)
+        x.fetch_NRFA_gdfpluslive(preqc=False)
         x.fetch_MO()
 
         x.merge_inps(ratio=0)
@@ -262,6 +262,7 @@ def kernets_ensembler(IDS, n_models=20, timelag_opt='all', timelag_t_x=5,
         
         z = knets.Kernets(st_id, n_models)
         qc_u.fetch_preqc_qc(st_id)
+        
         # preds - level3 data (*_merged, *_mods)
         z.get_mod()
         z.save_mod_merged()
