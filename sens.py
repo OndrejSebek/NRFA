@@ -33,7 +33,7 @@ big = pd.DataFrame(big)
 
 from sklearn.metrics import mean_squared_error
 from math import sqrt
-
+import matplotlib.pyplot as plt
 
 IDS = [33013, 34010, 34012, 34018, 39056, 40017, 46005, 47019, 48001, 49006]
 
@@ -52,9 +52,16 @@ for st in IDS:
     t_rmse = sqrt(mean_squared_error(t[str(st)], t["nn_m"]))
     f_rmse = sqrt(mean_squared_error(f[str(st)], f["nn_m"]))
     
-    big.append([st, f_rmse, t_rmse])
+    big.append([st, locs.shape[0], f_rmse, t_rmse])
+    
+    pd.merge(f[[str(st), "nn_m"]], t["nn_m"],
+             left_index=True, right_index=True,
+             suffixes=["_postqc", "_preqc"]).plot(figsize=(15,8),
+                                                  color=["black", "firebrick", "darkcyan"])
+    plt.savefig(f"sens/plots/{st}.png",
+                dpi=300)
 
-big = pd.DataFrame(big, columns=["st_id", "preqcF", "preqcT"])
+big = pd.DataFrame(big, columns=["st_id", "n_diffs", "preqcF", "preqcT"])
 big["preqcT"]/big["preqcF"]
 
 
