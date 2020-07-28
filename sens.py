@@ -63,17 +63,8 @@ for st in IDS:
 
 big = pd.DataFrame(big, columns=["st_id", "n_diffs", "preqcF", "preqcT"])
 big["preqcT"]/big["preqcF"]
-
+big.to_csv("sens/plots/fits.csv", index=False)
 
 # check preqcT x preqcF inps
-
-
-
-
-
-
-
-
-
 
 

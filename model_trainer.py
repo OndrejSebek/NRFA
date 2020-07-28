@@ -252,7 +252,7 @@ def kernets_ensembler(IDS, n_models=20, timelag_opt='all', timelag_t_x=5,
     for st_id in IDS:
         x = nrfa.NRFA(st_id)
         x.set_ids_local()
-        
+
         x.fetch_NRFA_gdfpluslive(preqc=False)
         x.fetch_MO()
 
@@ -272,4 +272,4 @@ def kernets_ensembler(IDS, n_models=20, timelag_opt='all', timelag_t_x=5,
         # z.plots(2000)
 
 
-# kernets_ensembler(IDS, 20)
+kernets_ensembler(IDS, 20)
